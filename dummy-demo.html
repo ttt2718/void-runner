@@ -196,9 +196,9 @@
   <div class="panel">
     <div class="eyebrow">TRAINING RANGE · 5 BARS × 64 SEGMENTS</div>
     <h1>DUMMY <span>TEST</span></h1>
-    <p class="sub">一只不会还手的 <b>Gunner 木桩</b>，血量 <b>3200</b>。<br>
-      5 条血 × 64 格 × 10 HP；每格都对应真实血量。<br>
-      用 34 伤害的脉冲步枪打空它，打完后自动重置。</p>
+    <p class="sub">一只不会还手的 <b>Gunner 木桩</b>，血量 <b>16000</b>。<br>
+      5 条血 × 64 格 × 50 HP；每格都对应真实血量。<br>
+      弹匣 99 / 射速翻倍；用 34 伤害打空它，打完后自动重置。</p>
     <div class="keys desktop-only">
       <div><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd><span>移动</span></div>
       <div><kbd>鼠标</kbd><span>转向</span></div>
@@ -1071,7 +1071,7 @@ const player = {
   x: 12.5, y: 19.5, ang: -Math.PI / 2,
   hp: 100, maxHp: 100,
   vx: 0, vy: 0,
-  mag: 12, magSize: 12,
+  mag: 99, magSize: 99,
   fireCd: 0, reloadT: 0,
   bobPhase: 0, bobY: 0,
   hurtT: 0, recoil: 0, muzzleT: 0,
@@ -1657,7 +1657,7 @@ function startGame() {
 }
 
 /* ---------- 5 条血 Gunner 木桩试玩 ---------- */
-const DUMMY_MAX_HP = 3200;          // 5 条 × 64 格 × 10 HP
+const DUMMY_MAX_HP = 16000;         // 5 条 × 64 格 × 50 HP
 const DUMMY_X = 12.5, DUMMY_Y = 15.9;
 let dummy = null;
 let dummyRespawnT = 0;
@@ -2087,7 +2087,7 @@ function tryFire() {
   if (player.reloadT > 0 || player.fireCd > 0) return;
   if (player.mag <= 0) { startReload(); return; }
   player.mag--;
-  player.fireCd = 0.112;
+  player.fireCd = 0.056;
   player.muzzleT = 0.055;
   player.recoil = 1;
   game.shake = Math.max(game.shake, 1.6);
@@ -2795,7 +2795,7 @@ function renderDummyBars(e) {
   if (col < 0 || col >= VW) return;
   if (pt.d >= zbuf[col] - 0.02) return;
 
-  const W = 180, ROW_H = 6, GAP = 2, ROW_HP = 640, SEGS = 64;
+  const W = 180, ROW_H = 6, GAP = 2, ROW_HP = 3200, SEGS = 64;
   const hp = Math.max(0, e.hp);
   const ghost = Math.max(0, e.ghostHp);
   const maxRows = Math.ceil(e.maxHp / ROW_HP);
@@ -2833,7 +2833,7 @@ function renderDummyBars(e) {
       ctx.fillRect(x, y, W * cf, ROW_H);
     }
 
-    // 64 格，每格严格 10 HP
+    // 64 格，每格严格 50 HP
     ctx.fillStyle = 'rgba(0,0,0,.52)';
     for (let i = 1; i < SEGS; i++) {
       const sx = x + Math.round(W * i / SEGS);
@@ -3031,7 +3031,7 @@ function renderHUD() {
   const hpFrac = clamp(player.hp / player.maxHp, 0, 1);
   const hpColor = hpFrac > 0.6 ? '#9dff5a' : hpFrac > 0.3 ? '#ffd23a' : '#ff5147';
   const lowAmmo = player.mag <= 3;
-  const pipW = 5, pipGap = 1;
+  const pipW = player.magSize > 20 ? 1 : 5, pipGap = 1;
   const pipTotal = player.magSize * (pipW + pipGap) - pipGap;
 
   const drawHpBar = (bx, by, barW, barH) => {
