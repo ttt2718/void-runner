@@ -320,6 +320,32 @@ function vnoise(x, y, s) {
   return lerp(lerp(a, b, u), lerp(c, d, u), v);
 }
 
+// 位图字体只有大写，所以指数用 E
+function formatNum(n) {
+  if (!Number.isFinite(n)) return 'INF';
+  n = Math.max(0, n);
+  if (n < 10000) return String(Math.floor(n));
+  if (n >= 1e15) {
+    const parts = n.toExponential(2).split('e');
+    return parts[0] + 'E' + Number(parts[1]);
+  }
+  const units = [[1e12, 'T'], [1e9, 'B'], [1e6, 'M'], [1e3, 'K']];
+  for (const [v, s] of units) {
+    if (n >= v) {
+      const x = n / v;
+      return (x >= 100 ? Math.floor(x) : x >= 10 ? x.toFixed(1) : x.toFixed(2)) + s;
+    }
+  }
+  return String(Math.floor(n));
+}
+
+function damageColor(n) {
+  if (n >= 1e9) return '#ff8af0';
+  if (n >= 1e6) return '#ffb23a';
+  if (n >= 1e3) return '#ffe45e';
+  return '#f4f8ff';
+}
+
 /* =========================================================================
    1. 程序化像素贴图
    ========================================================================= */
@@ -1054,8 +1080,10 @@ const player = {
 const game = {
   wave: 0, score: 0, kills: 0, shots: 0, hits: 0,
   enemies: [], projectiles: [], pickups: [], particles: [],
+  floats: [], rings: [],
   pending: [], spawnTimer: 0, intermission: 0, waveActive: false,
   time: 0, shake: 0, damageFlash: 0, hitMarker: 0, killMarker: 0,
+  hitStop: 0,
   banner: '', bannerSub: '', bannerT: 0,
   fps: 60, lowHpPulse: 0
 };
@@ -1352,6 +1380,9 @@ function toMenu() {
   game.projectiles.length = 0;
   game.pickups.length = 0;
   game.particles.length = 0;
+  game.floats.length = 0;
+  game.rings.length = 0;
+  game.hitStop = 0;
   game.pending.length = 0;
   game.waveActive = false;
   game.intermission = 0;
@@ -1597,6 +1628,9 @@ function startGame() {
   game.projectiles.length = 0;
   game.pickups.length = 0;
   game.particles.length = 0;
+  game.floats.length = 0;
+  game.rings.length = 0;
+  game.hitStop = 0;
   game.pending.length = 0;
   game.spawnTimer = 0;
   game.intermission = 0;
@@ -1694,9 +1728,13 @@ function spawnEnemyAt(type, x, y) {
   const def = ETYPES[type];
   const wf = game.wave;
   const hpScale = 1 + (wf - 1) * 0.10;
+  const maxHp = def.hp * hpScale;
   const e = {
     type, x, y,
-    hp: def.hp * hpScale, maxHp: def.hp * hpScale,
+    hp: maxHp, maxHp,
+    ghostHp: maxHp, ghostHold: 0,
+    barShowT: 0, barHitT: 0,
+    overkill: 0, barShatterT: 0, barShatterDone: false, barHidden: false,
     radius: def.radius,
     speed: def.speed * (1 + Math.min(0.32, (wf - 1) * 0.022)),
     dead: false, deadT: 0,
@@ -1730,6 +1768,20 @@ function updateCamera() {
   dirY = Math.sin(player.ang);
   planeX = -dirY * PLANE;
   planeY = dirX * PLANE;
+}
+
+// 敌人血条的屏幕位置（头顶）
+function enemyBarScreen(e) {
+  const art = ENEMY_ART[e.type];
+  let h = art.height;
+  if (e.dead) h *= 1 - 0.72 * Math.min(1, e.deadT / 0.65);
+  const pt = worldToScreen(e.x, e.y, (e.dead ? 0 : art.vOff) + h + 0.03);
+  if (!pt) return null;
+  const col = Math.round(pt.x);
+  if (col < 0 || col >= VW) return null;
+  if (pt.d >= zbuf[col] - 0.02) return null;
+  const w = clamp((VH * h / pt.d) * 0.62, 18, 64);
+  return { x: pt.x - w / 2, y: pt.y - 9, w, hPx: h, d: pt.d, col };
 }
 
 /* =========================================================================
@@ -1791,12 +1843,80 @@ function spawnSparksAt(sx, sy, count) {
   }
 }
 
+function spawnFloat(sx, sy, text, color, scale) {
+  game.floats.push({
+    x: sx + (Math.random() - 0.5) * 10,
+    y: sy,
+    vx: (Math.random() - 0.5) * 12,
+    vy: -36,
+    life: 0.62, maxLife: 0.62,
+    text, color, scale: scale || 1
+  });
+  if (game.floats.length > 28) game.floats.shift();
+}
+
+function spawnRing(sx, sy, color, maxR) {
+  game.rings.push({ x: sx, y: sy, t: 0, life: 0.28, color, maxR: maxR || 28 });
+}
+
+function spawnBarShatter(sx, sy, overkill) {
+  const colors = overkill
+    ? ['#fff3c4', '#ffd23a', '#ff7a2a', '#ffffff']
+    : ['#ffe9a0', '#ff5a3a', '#c0261d', '#f4f8ff'];
+  for (let i = 0; i < 18; i++) {
+    const life = 0.28 + Math.random() * 0.32;
+    game.particles.push({
+      x: sx + (Math.random() - 0.5) * 40,
+      y: sy + (Math.random() - 0.5) * 6,
+      vx: (Math.random() - 0.5) * 210,
+      vy: -40 - Math.random() * 130,
+      grav: 240,
+      life, maxLife: life,
+      size: Math.random() < 0.4 ? 2 : 1,
+      color: colors[(Math.random() * colors.length) | 0]
+    });
+  }
+  if (overkill) spawnRing(sx, sy, '#ffd23a', 34);
+}
+
 function damageEnemy(e, dmg, ang) {
+  if (!e || e.dead) return;
+  const oldHp = e.hp;
   e.hp -= dmg;
   e.flashT = 0.09;
   e.pushX += Math.cos(ang) * 1.4;
   e.pushY += Math.sin(ang) * 1.4;
-  if (e.hp <= 0) killEnemy(e);
+
+  // 血条残影：记录命中前的血量，等一小段时间后再融化
+  e.ghostHp = Math.max(e.ghostHp, oldHp);
+  e.ghostHold = 0.05;
+  e.barShowT = 3.2;
+  e.barHitT = 0.14;
+
+  const killed = e.hp <= 0;
+  if (killed) {
+    e.overkill = Math.max(0, -e.hp);
+    e.barShatterT = 0;
+    e.barShatterDone = false;
+    e.barHidden = false;
+    game.hitStop = Math.max(game.hitStop, e.overkill > 0 ? 0.07 : 0.04);
+    game.shake = Math.max(game.shake, e.overkill > 0 ? 5 : 3);
+  }
+
+  const art = ENEMY_ART[e.type];
+  const dpt = worldToScreen(e.x, e.y, art.vOff + art.height * 0.55);
+  if (dpt) {
+    spawnFloat(dpt.x, dpt.y - 2, formatNum(dmg), damageColor(dmg), dmg >= 1e6 ? 2 : 1);
+  }
+  // 最后一只怪击杀后会弹 WAVE CLEAR，避免 OVERKILL 文字和它叠在一起
+  const lastOfWave = game.waveActive && game.pending.length === 0 &&
+    !game.enemies.some((o) => o !== e && !o.dead);
+  if (killed && e.overkill > 0 && !lastOfWave) {
+    const opt = worldToScreen(e.x, e.y, art.vOff + art.height * 0.82);
+    if (opt) spawnFloat(opt.x, opt.y - 2, 'OVERKILL', '#c8ff3d', 1);
+  }
+
+  if (killed) killEnemy(e);
   else Sound.hit();
 }
 
@@ -1820,6 +1940,9 @@ function killEnemy(e) {
   e.deadT = 0;
   e.windup = 0;
   e.pendingHit = false;
+  e.barShatterT = 0;
+  e.barShatterDone = false;
+  e.barHidden = false;
   game.kills++;
   game.score += ETYPES[e.type].score;
   game.killMarker = 0.4;
@@ -2132,6 +2255,54 @@ function updateParticles(dt) {
   }
 }
 
+// 血条动画使用真实时间，hitstop 时仍然继续融化
+function updateEnemyBars(dt) {
+  for (const e of game.enemies) {
+    if (e.barShowT > 0) e.barShowT = Math.max(0, e.barShowT - dt);
+    if (e.barHitT > 0) e.barHitT = Math.max(0, e.barHitT - dt);
+
+    if (e.ghostHold > 0) {
+      e.ghostHold = Math.max(0, e.ghostHold - dt);
+    } else {
+      const target = e.dead ? 0 : Math.max(0, e.hp);
+      if (e.ghostHp > target) {
+        e.ghostHp += (target - e.ghostHp) * (1 - Math.exp(-12 * dt));
+        if (e.ghostHp - target < 0.5) e.ghostHp = target;
+      }
+    }
+
+    if (e.dead) {
+      e.barShatterT += dt;
+      const delay = e.overkill > 0 ? 0.18 : 0.38;
+      if (!e.barShatterDone && e.barShatterT >= delay) {
+        e.barShatterDone = true;
+        e.barHidden = true;
+        const bp = enemyBarScreen(e);
+        if (bp) spawnBarShatter(bp.x + bp.w / 2, bp.y, e.overkill > 0);
+      }
+    }
+  }
+}
+
+function updateFloats(dt) {
+  for (let i = game.floats.length - 1; i >= 0; i--) {
+    const f = game.floats[i];
+    f.life -= dt;
+    if (f.life <= 0) { game.floats.splice(i, 1); continue; }
+    f.x += f.vx * dt;
+    f.y += f.vy * dt;
+    f.vy += 30 * dt;
+  }
+}
+
+function updateRings(dt) {
+  for (let i = game.rings.length - 1; i >= 0; i--) {
+    const r = game.rings[i];
+    r.t += dt;
+    if (r.t >= r.life) game.rings.splice(i, 1);
+  }
+}
+
 function updateWaves(dt) {
   for (let i = game.enemies.length - 1; i >= 0; i--) {
     if (game.enemies[i].dead && game.enemies[i].deadT > 16) game.enemies.splice(i, 1);
@@ -2171,6 +2342,10 @@ function updateWaves(dt) {
 }
 
 function update(dt) {
+  if (game.hitStop > 0) {
+    game.hitStop = Math.max(0, game.hitStop - dt);
+    dt *= 0.12;
+  }
   if (rotateBlocked) {
     updateParticles(dt);
     return;
@@ -2539,6 +2714,95 @@ function renderParticles() {
   ctx.globalAlpha = 1;
 }
 
+function renderEnemyBars() {
+  for (const e of game.enemies) {
+    if (e.barHidden || (e.dead && e.barShatterDone)) continue;
+    const show = !e.dead ? (e.barShowT > 0 || e.type === 'gunner') : true;
+    if (!show) continue;
+
+    const bp = enemyBarScreen(e);
+    if (!bp) continue;
+    const w = bp.w;
+    const x = Math.round(bp.x);
+    let y = clamp(Math.round(bp.y), 6, VH - 6);
+    // 触屏 HUD 在顶部，敌人血条下移，避免和玩家 HP/弹药/暂停键叠在一起
+    if (IS_TOUCH) y = Math.max(y, 88);
+    const bh = IS_TOUCH ? (e.type === 'gunner' ? 6 : 5) : (e.type === 'gunner' ? 5 : 4);
+    let cf = clamp(Math.max(0, e.hp) / e.maxHp, 0, 1);
+    let gf = clamp(Math.max(0, e.ghostHp) / e.maxHp, 0, 1);
+    if (e.dead) cf = 0;
+
+    const alpha = e.dead
+      ? clamp(1 - Math.max(0, e.barShatterT - 0.2) / 0.35, 0, 1)
+      : 1;
+    if (alpha <= 0) continue;
+
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = 'rgba(0,0,0,.72)';
+    ctx.fillRect(x - 1, y - 1, w + 2, bh + 2);
+    ctx.fillStyle = '#2a0c0c';
+    ctx.fillRect(x, y, w, bh);
+
+    if (gf > cf) {
+      ctx.fillStyle = e.overkill > 0 && e.dead ? '#fff3c4' : '#ffd98a';
+      ctx.fillRect(x, y, w * gf, bh);
+    }
+    if (cf > 0) {
+      ctx.fillStyle = e.barHitT > 0 ? '#fff6e8' : '#ff4438';
+      ctx.fillRect(x, y, w * cf, bh);
+    }
+
+    ctx.fillStyle = 'rgba(0,0,0,.55)';
+    for (let i = 1; i < 10; i++) {
+      const sx = x + Math.round(w * i / 10);
+      ctx.fillRect(sx, y, 1, bh);
+    }
+    ctx.fillStyle = 'rgba(255,255,255,.16)';
+    ctx.fillRect(x, y, w, 1);
+
+    if (e.dead && e.overkill > 0 && e.barShatterT < 0.12) {
+      ctx.fillStyle = 'rgba(255,255,255,.22)';
+      ctx.fillRect(x - 1, y - 1, w + 2, bh + 2);
+      ctx.strokeStyle = 'rgba(255,255,255,.95)';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(x - 1.5, y - 1.5, w + 3, bh + 3);
+    }
+    if (e.type === 'gunner') {
+      ctx.strokeStyle = 'rgba(255,154,58,.55)';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(x - 1.5, y - 1.5, w + 3, bh + 3);
+    }
+    ctx.globalAlpha = 1;
+  }
+}
+
+function renderRings() {
+  if (!game.rings.length) return;
+  ctx.globalCompositeOperation = 'lighter';
+  for (const r of game.rings) {
+    const k = clamp(r.t / r.life, 0, 1);
+    const rad = 4 + r.maxR * k;
+    ctx.globalAlpha = (1 - k) * 0.8;
+    ctx.strokeStyle = r.color;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(r.x, r.y, rad, 0, TAU);
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+  ctx.globalCompositeOperation = 'source-over';
+}
+
+function renderFloats() {
+  for (const f of game.floats) {
+    const a = clamp(f.life / 0.25, 0, 1);
+    if (a <= 0) continue;
+    ctx.globalAlpha = a;
+    drawText(f.text, f.x, f.y, f.color, f.scale, 'center');
+  }
+  ctx.globalAlpha = 1;
+}
+
 function buildMinimap() {
   const ms = 3;
   const cv = document.createElement('canvas');
@@ -2737,8 +3001,11 @@ function render() {
   renderSprites();
   ctx.putImageData(img, 0, 0);
 
+  renderRings();
   renderParticles();
   renderWeapon();
+  renderFloats();
+  renderEnemyBars();
 
   if (state !== 'menu') renderHUD();
   renderOverlays();
@@ -2758,11 +3025,18 @@ function frame(t) {
 
   if (dt > 0) game.fps = lerp(game.fps, 1 / dt, 0.06);
 
+  const rawDt = dt;
   if (state === 'playing') update(dt);
   else if (state === 'dead') updateParticles(dt);
   else if (state === 'menu') {
     player.ang += dt * 0.06;
     if (player.ang > Math.PI) player.ang -= TAU;
+  }
+
+  if (state === 'playing' || state === 'dead') {
+    updateEnemyBars(rawDt);
+    updateFloats(rawDt);
+    updateRings(rawDt);
   }
   render();
 }
@@ -2792,6 +3066,7 @@ window.VR = {
   damage: damageEnemy,
   fire: tryFire,
   reload: startReload,
+  barInfo: (e) => enemyBarScreen(e),
   render,
   view: { get W() { return VW; }, get H() { return VH; } }
 };
