@@ -198,7 +198,7 @@
     <h1>DUMMY <span>TEST</span></h1>
     <p class="sub">一只不会还手的 <b>Gunner 木桩</b>，血量 <b>16000</b>。<br>
       5 条血 × 64 格 × 50 HP；每格都对应真实血量。<br>
-      弹匣 99 / 射速翻倍；用 34 伤害打空它，打完后自动重置。</p>
+      弹匣 99 / 射速翻倍；用 500 伤害打空它，打完后自动重置。</p>
     <div class="keys desktop-only">
       <div><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd><span>移动</span></div>
       <div><kbd>鼠标</kbd><span>转向</span></div>
@@ -2072,7 +2072,7 @@ function fireHitscan(spread) {
     const def = ETYPES[best.type];
     const pt = worldToScreen(best.x, best.y, def.eyeH);
     if (pt) spawnBlood(pt.x, pt.y, 12);
-    damageEnemy(best, 34, ang);
+    damageEnemy(best, 500, ang);
     game.hits++;
     game.hitMarker = 0.18;
   } else {
@@ -2795,7 +2795,7 @@ function renderDummyBars(e) {
   if (col < 0 || col >= VW) return;
   if (pt.d >= zbuf[col] - 0.02) return;
 
-  const W = 180, ROW_H = 6, STEP = 3, ROW_HP = 3200, SEGS = 64;
+  const W = 180, ROW_H = 6, GAP = 2, ROW_HP = 3200, SEGS = 64;
   const hp = Math.max(0, e.hp);
   const ghost = Math.max(0, e.ghostHp);
   const maxRows = Math.ceil(e.maxHp / ROW_HP);
@@ -2803,15 +2803,15 @@ function renderDummyBars(e) {
   const x = Math.round(pt.x - W / 2);
   const colors = ['#ff4438', '#ff9a2a', '#ffe45e', '#7dff8a', '#5ee7ff'];
   let topY = baseY;
-  const activeRow = hp > 0 ? Math.min(maxRows - 1, Math.floor((hp - 1) / ROW_HP)) : -1;
+  let activeRow = -1;
 
-  // 从底层往上画，后画的高层压住下层，只露出 3px 色条
-  for (let r = 0; r < maxRows; r++) {
+  for (let r = maxRows - 1; r >= 0; r--) {
     const rhp = clamp(hp - r * ROW_HP, 0, ROW_HP);
     const rghost = clamp(ghost - r * ROW_HP, 0, ROW_HP);
     if (rhp <= 0 && rghost <= 0) continue;
-    const y = baseY - r * STEP;
+    const y = baseY - r * (ROW_H + GAP);
     if (y < 2) continue;
+    if (rhp > 0 && activeRow < 0) activeRow = r;
     topY = Math.min(topY, y);
 
     const cf = rhp / ROW_HP;
