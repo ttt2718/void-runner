@@ -198,7 +198,7 @@
     <h1>DUMMY <span>TEST</span></h1>
     <p class="sub">一只不会还手的 <b>Gunner 木桩</b>，血量 <b>16000</b>。<br>
       5 条血 × 64 格 × 50 HP；每格都对应真实血量。<br>
-      弹匣 99 / 射速翻倍；用 500 伤害打空它，打完后自动重置。</p>
+      弹匣 99 / 射速翻倍；用 5000 伤害打空它，打完后自动重置。</p>
     <div class="keys desktop-only">
       <div><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd><span>移动</span></div>
       <div><kbd>鼠标</kbd><span>转向</span></div>
@@ -2072,7 +2072,7 @@ function fireHitscan(spread) {
     const def = ETYPES[best.type];
     const pt = worldToScreen(best.x, best.y, def.eyeH);
     if (pt) spawnBlood(pt.x, pt.y, 12);
-    damageEnemy(best, 500, ang);
+    damageEnemy(best, 5000, ang);
     game.hits++;
     game.hitMarker = 0.18;
   } else {
