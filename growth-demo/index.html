@@ -2058,7 +2058,7 @@ function damageEnemy(e, dmg, ang, crit) {
   const dpt = worldToScreen(e.x, e.y, art.vOff + art.height * 0.55);
   if (dpt) {
     spawnFloat(dpt.x, dpt.y - 2, dmgText(dmg), crit ? '#ffe45e' : damageColor(dmg), crit ? 1.8 : (dmg >= 1e6 ? 1.8 : 0.9));
-    if (crit) spawnFloat(dpt.x + 8, dpt.y - 18, 'CRIT', '#ffe45e', 1);
+    if (crit) spawnFloat(dpt.x + 8, dpt.y - 18, 'CRIT', '#ffe45e', 0.9);
   }
   // 最后一只怪击杀后会弹 WAVE CLEAR，避免 OVERKILL 文字和它叠在一起
   const lastOfWave = game.waveActive && game.pending.length === 0 &&
