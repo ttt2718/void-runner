@@ -2795,7 +2795,7 @@ function renderDummyBars(e) {
   if (col < 0 || col >= VW) return;
   if (pt.d >= zbuf[col] - 0.02) return;
 
-  const W = 180, ROW_H = 6, GAP = 2, ROW_HP = 3200, SEGS = 64;
+  const W = 180, ROW_H = 6, STEP = 3, ROW_HP = 3200, SEGS = 64;
   const hp = Math.max(0, e.hp);
   const ghost = Math.max(0, e.ghostHp);
   const maxRows = Math.ceil(e.maxHp / ROW_HP);
@@ -2803,15 +2803,15 @@ function renderDummyBars(e) {
   const x = Math.round(pt.x - W / 2);
   const colors = ['#ff4438', '#ff9a2a', '#ffe45e', '#7dff8a', '#5ee7ff'];
   let topY = baseY;
-  let activeRow = -1;
+  const activeRow = hp > 0 ? Math.min(maxRows - 1, Math.floor((hp - 1) / ROW_HP)) : -1;
 
-  for (let r = maxRows - 1; r >= 0; r--) {
+  // 从底层往上画，后画的高层压住下层，只露出 3px 色条
+  for (let r = 0; r < maxRows; r++) {
     const rhp = clamp(hp - r * ROW_HP, 0, ROW_HP);
     const rghost = clamp(ghost - r * ROW_HP, 0, ROW_HP);
     if (rhp <= 0 && rghost <= 0) continue;
-    const y = baseY - r * (ROW_H + GAP);
+    const y = baseY - r * STEP;
     if (y < 2) continue;
-    if (rhp > 0 && activeRow < 0) activeRow = r;
     topY = Math.min(topY, y);
 
     const cf = rhp / ROW_HP;
