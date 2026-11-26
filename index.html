@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
 <title>VOID RUNNER · 像素伪3D FPS Demo</title>
 <meta name="theme-color" content="#05070c" />
 <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Crect%20width='32'%20height='32'%20fill='%2305070c'/%3E%3Cpath%20d='M16%205v8M16%2019v8M5%2016h8M19%2016h8'%20stroke='%23c8ff3d'%20stroke-width='3'/%3E%3Crect%20x='13'%20y='13'%20width='6'%20height='6'%20fill='%23ff4438'/%3E%3C/svg%3E" />
@@ -12,14 +12,16 @@
     --panel:rgba(8,14,22,.9);
   }
   *{box-sizing:border-box}
-  html,body{height:100%}
+  html,body{height:100%; overscroll-behavior:none}
   body{
     margin:0; background:#030407; color:#dbe6f2;
     font-family:"Consolas","SFMono-Regular","Courier New",monospace;
     overflow:hidden; user-select:none; -webkit-user-select:none;
-    -webkit-tap-highlight-color:transparent;
+    -webkit-tap-highlight-color:transparent; touch-action:none;
   }
-  #app{position:fixed; inset:0; display:grid; place-items:center; background:radial-gradient(ellipse at 50% 40%,#0a1018 0%,#04060a 72%)}
+  #app{position:fixed; inset:0; display:grid; place-items:center;
+    padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    background:radial-gradient(ellipse at 50% 40%,#0a1018 0%,#04060a 72%)}
   canvas#screen{display:block; background:#000; image-rendering:pixelated; image-rendering:crisp-edges; cursor:crosshair; outline:none}
   #app.playing canvas#screen{cursor:none}
 
@@ -34,7 +36,8 @@
 
   .overlay{position:fixed; inset:0; z-index:30; display:flex; align-items:center; justify-content:center;
     background:radial-gradient(ellipse at 50% 45%, rgba(8,14,22,.84), rgba(2,4,8,.97));
-    backdrop-filter:blur(3px); padding:24px;}
+    backdrop-filter:blur(3px);
+    padding: calc(24px + env(safe-area-inset-top)) calc(24px + env(safe-area-inset-right)) calc(24px + env(safe-area-inset-bottom)) calc(24px + env(safe-area-inset-left));}
   .overlay.hidden{display:none}
   .panel{width:min(700px,100%); border:1px solid rgba(94,231,255,.28); background:var(--panel);
     box-shadow:0 0 0 1px rgba(0,0,0,.6), 0 0 90px rgba(41,150,190,.10) inset, 0 24px 80px rgba(0,0,0,.7);
@@ -68,6 +71,96 @@
   #gameover h1{color:#ff6a5e; text-shadow:0 0 24px rgba(255,68,56,.3)}
   .tag{display:inline-block; font-size:9px; letter-spacing:.28em; padding:4px 8px; border:1px solid #2a4153; color:#7c9ab2; margin-bottom:16px}
   @media (max-width:640px){ .panel{padding:24px 20px} .keys{grid-template-columns:1fr} .stat{gap:22px} }
+
+  /* ===== 移动端 / 触屏 ===== */
+  .touch-only{display:none}
+  body.touch .desktop-only{display:none !important}
+  body.touch .keys.touch-only{display:grid !important}
+  body.touch p.touch-only{display:block}
+  body.touch span.touch-only{display:inline}
+  body.touch #hint{display:none}
+
+  #touch-ui{position:fixed; inset:0; z-index:25; display:none; pointer-events:none;
+    touch-action:none; font-family:inherit}
+  body.touch #touch-ui.show{display:block}
+  #look-pad{position:absolute; right:0; top:0; width:54%; height:100%; z-index:0;
+    pointer-events:auto; touch-action:none}
+  #stick-zone{position:absolute; left:0; bottom:0; width:45%; height:64%; z-index:1;
+    pointer-events:auto; touch-action:none}
+  #stick-base{position:absolute; left:calc(16px + env(safe-area-inset-left)); bottom:calc(16px + env(safe-area-inset-bottom));
+    width:clamp(96px,25vh,124px); height:clamp(96px,25vh,124px); border-radius:50%;
+    border:2px solid rgba(200,255,61,.35);
+    background:radial-gradient(circle at 50% 50%, rgba(12,22,28,.55) 0 46%, rgba(8,14,20,.32) 47% 100%);
+    box-shadow:0 0 0 1px rgba(0,0,0,.4) inset, 0 0 24px rgba(94,231,255,.08) inset;
+    pointer-events:none}
+  #stick-base::before,#stick-base::after{content:""; position:absolute; left:50%; top:50%;
+    background:rgba(200,255,61,.16); transform:translate(-50%,-50%)}
+  #stick-base::before{width:64%; height:1px}
+  #stick-base::after{width:1px; height:64%}
+  #stick-base.active{border-color:rgba(200,255,61,.7); box-shadow:0 0 30px rgba(200,255,61,.2)}
+  #stick-knob{position:absolute; left:50%; top:50%; width:42%; height:42%; border-radius:50%;
+    transform:translate(-50%,-50%);
+    background:radial-gradient(circle at 35% 30%, #eaffb0, #94c21f 45%, #3c5a0c 100%);
+    border:2px solid #c8ff3d;
+    box-shadow:0 0 18px rgba(200,255,61,.35), 0 4px 10px rgba(0,0,0,.5);
+    pointer-events:none}
+  .tbtn{position:absolute; z-index:5; display:flex; align-items:center; justify-content:center;
+    margin:0; padding:0; pointer-events:auto; touch-action:none;
+    -webkit-appearance:none; appearance:none; font-family:inherit; color:#eaf7ff;
+    letter-spacing:.08em; border:2px solid rgba(94,231,255,.55);
+    background:rgba(8,18,26,.62); box-shadow:0 0 18px rgba(0,0,0,.35);
+    user-select:none; -webkit-user-select:none; outline:none}
+  .tbtn:active,.tbtn.pressed{transform:scale(.95); filter:brightness(1.35)}
+  #btn-fire{right:calc(18px + env(safe-area-inset-right)); bottom:calc(20px + env(safe-area-inset-bottom));
+    width:clamp(74px,20vh,100px); height:clamp(74px,20vh,100px); border-radius:50%;
+    border-color:rgba(255,120,90,.8);
+    background:radial-gradient(circle at 36% 30%, #ff9a72, #d0342a 55%, #6e1410 100%);
+    color:#fff4ee; font-size:clamp(10px,1.6vh,13px); font-weight:700; letter-spacing:.12em;
+    box-shadow:0 0 26px rgba(255,68,56,.35), 0 6px 16px rgba(0,0,0,.5)}
+  #btn-reload{right:calc(18px + env(safe-area-inset-right) + clamp(74px,20vh,100px) + 14px);
+    bottom:calc(24px + env(safe-area-inset-bottom));
+    width:clamp(46px,12vh,58px); height:clamp(46px,12vh,58px); border-radius:50%;
+    font-size:clamp(13px,2vh,18px); color:#bff6ff; border-color:rgba(94,231,255,.6)}
+  #btn-pause,#btn-full{top:calc(8px + env(safe-area-inset-top)); width:40px; height:40px;
+    border-radius:8px; font-size:11px; color:#cfe6f6}
+  #btn-pause{left:calc(50% - 46px)}
+  #btn-full{left:calc(50% + 6px)}
+  #mobile-tip{position:absolute; z-index:4; left:50%; top:calc(56px + env(safe-area-inset-top));
+    transform:translateX(-50%); font-size:10px; letter-spacing:.14em; color:#a9c2d4;
+    white-space:nowrap; padding:6px 10px; background:rgba(3,7,11,.62);
+    border:1px solid rgba(94,231,255,.22); opacity:0; transition:opacity .45s;
+    pointer-events:none}
+  #mobile-tip.show{opacity:1}
+
+  #rotate{position:fixed; inset:0; z-index:60; display:none; align-items:center; justify-content:center;
+    background:radial-gradient(ellipse at 50% 40%, #0a1018 0%, #020306 80%); padding:24px; text-align:center}
+  #rotate.show{display:flex}
+  #rotate .rc{max-width:420px}
+  .phone-ico{width:56px; height:100px; border:3px solid var(--cyan); border-radius:10px; margin:0 auto;
+    position:relative; box-shadow:0 0 30px rgba(94,231,255,.22);
+    animation:phoneRot 2.4s ease-in-out infinite}
+  .phone-ico::after{content:""; position:absolute; left:50%; bottom:6px; width:18px; height:2px;
+    background:var(--cyan); transform:translateX(-50%)}
+  @keyframes phoneRot{0%,22%{transform:rotate(0)}62%,100%{transform:rotate(90deg)}}
+  #rotate h2{margin:24px 0 8px; font-size:24px; letter-spacing:.16em; color:var(--acid)}
+  #rotate p{margin:0 0 18px; color:#8fa4b7; font-size:12px; line-height:1.8; letter-spacing:.04em}
+  #rotate small{display:block; margin-top:14px; font-size:10px; color:#5b7185; letter-spacing:.08em}
+
+  @media (max-height:520px){
+    .overlay{padding: calc(10px + env(safe-area-inset-top)) calc(10px + env(safe-area-inset-right)) calc(10px + env(safe-area-inset-bottom)) calc(10px + env(safe-area-inset-left));
+      overflow-y:auto; align-items:flex-start}
+    .panel{padding:16px 22px 14px; margin:auto 0}
+    h1{font-size:clamp(26px,8vh,42px)}
+    .sub{margin:8px 0 12px; font-size:12px; line-height:1.5}
+    .keys{gap:4px 18px; margin-bottom:12px}
+    .keys div{padding-bottom:4px}
+    .eyebrow{margin-bottom:6px}
+    .foot{display:none}
+    .btn{padding:10px 20px}
+    #btn-pause,#btn-full{width:34px; height:34px; font-size:10px}
+    #btn-pause{left:calc(50% - 39px)}
+    #btn-full{left:calc(50% + 5px)}
+  }
 </style>
 </head>
 <body>
@@ -77,13 +170,35 @@
 </div>
 <div id="crt"></div>
 
+<div id="touch-ui">
+  <div id="look-pad"></div>
+  <div id="stick-zone">
+    <div id="stick-base"><div id="stick-knob"></div></div>
+  </div>
+  <button class="tbtn" id="btn-fire" type="button" aria-label="射击">FIRE</button>
+  <button class="tbtn" id="btn-reload" type="button" aria-label="换弹">R</button>
+  <button class="tbtn" id="btn-pause" type="button" aria-label="暂停">II</button>
+  <button class="tbtn" id="btn-full" type="button" aria-label="全屏">FULL</button>
+  <div id="mobile-tip">左摇杆移动 · 右侧滑动转向 · 推到底冲刺</div>
+</div>
+
+<div id="rotate">
+  <div class="rc">
+    <div class="phone-ico"></div>
+    <h2>请横屏继续</h2>
+    <p id="rotate-text">VOID RUNNER 需要横屏体验。<br>点击下方按钮自动进入全屏横屏。</p>
+    <button class="btn" id="btn-rotate" type="button">全屏并横屏</button>
+    <small>如果浏览器不支持自动横屏，请手动旋转手机。</small>
+  </div>
+</div>
+
 <div id="menu" class="overlay">
   <div class="panel">
     <div class="eyebrow">RAYCASTING FPS · PIXEL DEMO</div>
     <h1>VOID <span>RUNNER</span></h1>
     <p class="sub">你被困在一座像素化的废弃设施里，手里的<b>脉冲步枪</b>是唯一的出口。<br>
       在无尽波次中活下去，被击杀的敌人有概率掉落<b>医疗包</b>。<b>别停下来。</b></p>
-    <div class="keys">
+    <div class="keys desktop-only">
       <div><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd><span>移动</span></div>
       <div><kbd>鼠标</kbd><span>转向</span></div>
       <div><kbd>左键</kbd><span>射击</span></div>
@@ -91,9 +206,18 @@
       <div><kbd>Shift</kbd><span>冲刺</span></div>
       <div><kbd>Esc</kbd><span>暂停</span></div>
     </div>
+    <div class="keys touch-only">
+      <div><kbd>左摇杆</kbd><span>移动</span></div>
+      <div><kbd>右半屏</kbd><span>滑动转向</span></div>
+      <div><kbd>FIRE</kbd><span>按住射击</span></div>
+      <div><kbd>R</kbd><span>换弹</span></div>
+      <div><kbd>推到底</kbd><span>冲刺</span></div>
+      <div><kbd>II</kbd><span>暂停</span></div>
+    </div>
     <div class="row">
       <button class="btn" id="btn-start">开始游戏</button>
-      <span style="font-size:11px;color:#63798c;letter-spacing:.12em">建议使用鼠标 + 键盘</span>
+      <span class="desktop-only" style="font-size:11px;color:#63798c;letter-spacing:.12em">建议使用鼠标 + 键盘</span>
+      <span class="touch-only" style="font-size:11px;color:#63798c;letter-spacing:.12em">虚拟摇杆 · 自动横屏</span>
     </div>
     <div class="foot">24 × 24 grid · raycasting pseudo-3D · zero external assets</div>
   </div>
@@ -103,7 +227,8 @@
   <div class="panel">
     <div class="eyebrow">SYSTEM HALT</div>
     <h1>已<span>暂停</span></h1>
-    <p class="sub">鼠标已释放。点击继续返回战场，或按 <kbd>ESC</kbd> 强制恢复。</p>
+    <p class="sub desktop-only">鼠标已释放。点击继续返回战场，或按 <kbd>ESC</kbd> 强制恢复。</p>
+    <p class="sub touch-only">游戏已暂停。点击下方按钮返回战场。</p>
     <div class="row">
       <button class="btn" id="btn-resume">继续游戏</button>
       <button class="btn ghost" id="btn-quit">回到主菜单</button>
@@ -137,6 +262,14 @@ const $ = (s) => document.querySelector(s);
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 const lerp = (a, b, t) => a + (b - a) * t;
 const TAU = Math.PI * 2;
+
+// 触屏检测：手机/平板（或 ?touch=1 强制开启）
+const QUERY = new URLSearchParams(location.search);
+const FORCE_TOUCH = QUERY.get('touch');
+const IS_TOUCH = FORCE_TOUCH === '1' ||
+  (FORCE_TOUCH !== '0' && (window.matchMedia('(pointer: coarse)').matches ||
+    (navigator.maxTouchPoints > 0 && window.matchMedia('(hover: none)').matches)));
+if (IS_TOUCH) document.body.classList.add('touch');
 
 function mulberry32(seed) {
   let a = seed >>> 0;
@@ -885,6 +1018,20 @@ function solidAt(x, y) {
 const canvas = $('#screen');
 const ctx = canvas.getContext('2d');
 
+// 触屏 UI 引用
+const touchUI = $('#touch-ui');
+const lookPad = $('#look-pad');
+const stickZone = $('#stick-zone');
+const stickBase = $('#stick-base');
+const stickKnob = $('#stick-knob');
+const fireBtn = $('#btn-fire');
+const reloadBtn = $('#btn-reload');
+const pauseBtn = $('#btn-pause');
+const fullBtn = $('#btn-full');
+const mobileTip = $('#mobile-tip');
+const rotateEl = $('#rotate');
+const rotateBtn = $('#btn-rotate');
+
 let state = 'menu';
 let everLocked = false;
 let lastPauseAt = -1e9;
@@ -912,6 +1059,13 @@ const game = {
   banner: '', bannerSub: '', bannerT: 0,
   fps: 60, lowHpPulse: 0
 };
+
+const touchInput = {
+  fwd: 0, str: 0, sprint: false, firing: false,
+  stickId: null, lookId: null, lastLookX: 0
+};
+let rotateBlocked = false;
+let tipTimer = 0;
 
 const ETYPES = {
   grunt: {
@@ -1107,7 +1261,7 @@ let mouseDown = false;
 const SENS = 0.0024;
 
 function requestLock() {
-  if (!canvas.requestPointerLock) return;
+  if (IS_TOUCH || !canvas.requestPointerLock) return;
   try {
     const p = canvas.requestPointerLock();
     if (p && p.catch) p.catch(() => {});
@@ -1115,6 +1269,52 @@ function requestLock() {
 }
 
 function isLocked() { return document.pointerLockElement === canvas; }
+
+/* --- 触屏状态同步 --- */
+function resetTouchInput() {
+  touchInput.fwd = 0; touchInput.str = 0;
+  touchInput.sprint = false; touchInput.firing = false;
+  touchInput.stickId = null; touchInput.lookId = null;
+  if (stickKnob) stickKnob.style.transform = 'translate(-50%,-50%)';
+  if (stickBase) stickBase.classList.remove('active');
+  if (fireBtn) fireBtn.classList.remove('pressed');
+}
+
+function showMobileTip() {
+  if (!IS_TOUCH) return;
+  mobileTip.classList.add('show');
+  clearTimeout(tipTimer);
+  tipTimer = setTimeout(() => mobileTip.classList.remove('show'), 5000);
+}
+
+function syncTouchUI() {
+  if (!IS_TOUCH) { rotateBlocked = false; return; }
+  rotateBlocked = state === 'playing' && window.innerHeight > window.innerWidth * 1.02;
+  rotateEl.classList.toggle('show', rotateBlocked);
+  touchUI.classList.toggle('show', state === 'playing' && !rotateBlocked);
+  if (state !== 'playing') {
+    mobileTip.classList.remove('show');
+    resetTouchInput();
+  }
+  if (rotateBlocked) resetTouchInput();
+}
+
+async function enterImmersive() {
+  if (!IS_TOUCH) return;
+  // 程序化启动（无用户手势）时跳过，避免浏览器警告
+  if (navigator.userActivation && !navigator.userActivation.isActive) return;
+  try {
+    if (document.documentElement.requestFullscreen && !document.fullscreenElement) {
+      await document.documentElement.requestFullscreen();
+    }
+  } catch (e) { /* 用户拒绝或浏览器不支持 */ }
+  try {
+    if (screen.orientation && screen.orientation.lock) {
+      await screen.orientation.lock('landscape');
+    }
+  } catch (e) { /* iOS Safari 等不支持时静默降级 */ }
+  setTimeout(() => { resizeView(); syncTouchUI(); }, 120);
+}
 
 function pauseGame() {
   if (state !== 'playing') return;
@@ -1125,6 +1325,8 @@ function pauseGame() {
   if (isLocked()) document.exitPointerLock();
   $('#pause').classList.remove('hidden');
   $('#app').classList.remove('playing');
+  resetTouchInput();
+  syncTouchUI();
 }
 
 function resumeGame() {
@@ -1133,6 +1335,7 @@ function resumeGame() {
   $('#pause').classList.add('hidden');
   $('#app').classList.add('playing');
   Sound.init();
+  syncTouchUI();
   requestLock();
 }
 
@@ -1162,6 +1365,8 @@ function toMenu() {
   player.reloadT = 0;
   player.recoil = 0;
   player.muzzleT = 0;
+  resetTouchInput();
+  syncTouchUI();
 }
 
 window.addEventListener('keydown', (e) => {
@@ -1210,11 +1415,133 @@ document.addEventListener('pointerlockchange', () => {
   if (state === 'playing') pauseGame();
 });
 
+/* --- 触屏虚拟按键 --- */
+function bindTouchControls() {
+  if (!IS_TOUCH) return;
+
+  const updateStick = (cx, cy) => {
+    const r = stickBase.getBoundingClientRect();
+    const ox = r.left + r.width / 2, oy = r.top + r.height / 2;
+    let dx = cx - ox, dy = cy - oy;
+    const max = r.width * 0.34;
+    const len = Math.hypot(dx, dy);
+    if (len > max) { dx = dx / len * max; dy = dy / len * max; }
+    stickKnob.style.transform =
+      `translate(calc(-50% + ${dx.toFixed(1)}px), calc(-50% + ${dy.toFixed(1)}px))`;
+    const nx = dx / max, ny = dy / max;
+    const dead = 0.16;
+    touchInput.str = Math.abs(nx) < dead ? 0 : nx;
+    touchInput.fwd = Math.abs(ny) < dead ? 0 : -ny;
+    touchInput.sprint = Math.hypot(nx, ny) > 0.92;
+  };
+
+  stickZone.addEventListener('pointerdown', (e) => {
+    if (state !== 'playing' || rotateBlocked) return;
+    e.preventDefault();
+    if (touchInput.stickId !== null) return;
+    touchInput.stickId = e.pointerId;
+    stickBase.classList.add('active');
+    try { stickZone.setPointerCapture(e.pointerId); } catch (err) {}
+    updateStick(e.clientX, e.clientY);
+  });
+  stickZone.addEventListener('pointermove', (e) => {
+    if (e.pointerId !== touchInput.stickId) return;
+    e.preventDefault();
+    updateStick(e.clientX, e.clientY);
+  });
+  const endStick = (e) => {
+    if (touchInput.stickId === null) return;
+    if (e && e.pointerId !== undefined && e.pointerId !== touchInput.stickId) return;
+    touchInput.stickId = null;
+    touchInput.fwd = 0; touchInput.str = 0; touchInput.sprint = false;
+    stickKnob.style.transform = 'translate(-50%,-50%)';
+    stickBase.classList.remove('active');
+  };
+  stickZone.addEventListener('pointerup', endStick);
+  stickZone.addEventListener('pointercancel', endStick);
+  stickZone.addEventListener('lostpointercapture', endStick);
+
+  lookPad.addEventListener('pointerdown', (e) => {
+    if (state !== 'playing' || rotateBlocked) return;
+    e.preventDefault();
+    if (touchInput.lookId !== null) return;
+    touchInput.lookId = e.pointerId;
+    touchInput.lastLookX = e.clientX;
+    try { lookPad.setPointerCapture(e.pointerId); } catch (err) {}
+  });
+  lookPad.addEventListener('pointermove', (e) => {
+    if (e.pointerId !== touchInput.lookId) return;
+    e.preventDefault();
+    const dx = e.clientX - touchInput.lastLookX;
+    touchInput.lastLookX = e.clientX;
+    if (Math.abs(dx) > 160) return;
+    player.ang += dx * 0.0042;
+    if (player.ang > Math.PI) player.ang -= TAU;
+    if (player.ang < -Math.PI) player.ang += TAU;
+  });
+  const endLook = (e) => {
+    if (e && e.pointerId !== undefined && e.pointerId !== touchInput.lookId) return;
+    touchInput.lookId = null;
+  };
+  lookPad.addEventListener('pointerup', endLook);
+  lookPad.addEventListener('pointercancel', endLook);
+  lookPad.addEventListener('lostpointercapture', endLook);
+
+  fireBtn.addEventListener('pointerdown', (e) => {
+    if (state !== 'playing' || rotateBlocked) return;
+    e.preventDefault();
+    touchInput.firing = true;
+    fireBtn.classList.add('pressed');
+    try { fireBtn.setPointerCapture(e.pointerId); } catch (err) {}
+  });
+  const endFire = () => {
+    touchInput.firing = false;
+    fireBtn.classList.remove('pressed');
+  };
+  fireBtn.addEventListener('pointerup', endFire);
+  fireBtn.addEventListener('pointercancel', endFire);
+  fireBtn.addEventListener('lostpointercapture', endFire);
+
+  reloadBtn.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    if (state === 'playing' && !rotateBlocked) startReload();
+  });
+  pauseBtn.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    if (state === 'playing') pauseGame();
+  });
+  fullBtn.addEventListener('pointerdown', (e) => { e.preventDefault(); enterImmersive(); });
+  rotateBtn.addEventListener('click', (e) => { e.preventDefault(); enterImmersive(); });
+
+  document.addEventListener('contextmenu', (e) => e.preventDefault());
+
+  if (!document.documentElement.requestFullscreen) {
+    fullBtn.style.display = 'none';
+    rotateBtn.style.display = 'none';
+    pauseBtn.style.left = 'calc(50% - 20px)';
+    const rt = document.querySelector('#rotate-text');
+    if (rt) rt.innerHTML = 'VOID RUNNER 需要横屏体验。<br>请将手机旋转为横屏。';
+  }
+
+  window.addEventListener('orientationchange', () => {
+    setTimeout(() => { resizeView(); syncTouchUI(); }, 180);
+  });
+  document.addEventListener('fullscreenchange', () => {
+    setTimeout(() => { resizeView(); syncTouchUI(); }, 120);
+  });
+}
+bindTouchControls();
+
 /* =========================================================================
    7. 视图尺寸
    ========================================================================= */
 function resizeView() {
-  const vw = window.innerWidth, vh = window.innerHeight;
+  const app = $('#app');
+  const cs = getComputedStyle(app);
+  const padX = (parseFloat(cs.paddingLeft) || 0) + (parseFloat(cs.paddingRight) || 0);
+  const padY = (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0);
+  const vw = Math.max(240, window.innerWidth - padX);
+  const vh = Math.max(160, window.innerHeight - padY);
   VH = 240;
   VW = clamp(Math.round(VH * vw / vh), 300, 640);
   canvas.width = VW;
@@ -1227,19 +1554,20 @@ function resizeView() {
   canvas.style.width = Math.floor(VW * scale) + 'px';
   canvas.style.height = Math.floor(VH * scale) + 'px';
 }
-window.addEventListener('resize', resizeView);
+window.addEventListener('resize', () => { resizeView(); syncTouchUI(); });
 resizeView();
 
 /* =========================================================================
    8. 事件绑定 / 启动
    ========================================================================= */
-$('#btn-start').addEventListener('click', () => { Sound.init(); startGame(); });
-$('#btn-resume').addEventListener('click', () => { Sound.init(); resumeGame(); });
+// 先处理全屏/指针锁定，再初始化音频，避免用户手势被提前消耗
+$('#btn-start').addEventListener('click', () => { startGame(); Sound.init(); });
+$('#btn-resume').addEventListener('click', () => { resumeGame(); Sound.init(); });
 $('#btn-quit').addEventListener('click', () => { toMenu(); banner('', '', 0); });
-$('#btn-retry').addEventListener('click', () => { Sound.init(); startGame(); });
+$('#btn-retry').addEventListener('click', () => { startGame(); Sound.init(); });
 $('#btn-menu').addEventListener('click', () => { toMenu(); });
 
-window.addEventListener('pointerdown', () => { Sound.init(); }, { once: false });
+window.addEventListener('pointerdown', () => { if (state === 'playing') Sound.init(); }, { once: false });
 
 /* =========================================================================
    9. 游戏流程
@@ -1281,7 +1609,15 @@ function startGame() {
 
   buildFlow();
   startWave(1);
-  requestLock();
+
+  if (IS_TOUCH) {
+    resetTouchInput();
+    showMobileTip();
+    enterImmersive();
+  } else {
+    requestLock();
+  }
+  syncTouchUI();
 }
 
 function startWave(n) {
@@ -1519,6 +1855,8 @@ function die() {
   $('#go-score').textContent = String(game.score);
   $('#go-wave').textContent = String(game.wave);
   $('#go-kills').textContent = String(game.kills);
+  resetTouchInput();
+  syncTouchUI();
   setTimeout(() => { if (state === 'dead') $('#gameover').classList.remove('hidden'); }, 750);
 }
 
@@ -1572,9 +1910,14 @@ function tryFire() {
    11. 更新
    ========================================================================= */
 function updatePlayer(dt) {
-  const fwd = (keys.KeyW || keys.ArrowUp ? 1 : 0) - (keys.KeyS || keys.ArrowDown ? 1 : 0);
-  const str = (keys.KeyD ? 1 : 0) - (keys.KeyA ? 1 : 0);
+  let fwd = (keys.KeyW || keys.ArrowUp ? 1 : 0) - (keys.KeyS || keys.ArrowDown ? 1 : 0);
+  let str = (keys.KeyD ? 1 : 0) - (keys.KeyA ? 1 : 0);
   const turn = (keys.ArrowRight ? 1 : 0) - (keys.ArrowLeft ? 1 : 0);
+
+  if (IS_TOUCH) {
+    fwd = clamp(fwd + touchInput.fwd, -1, 1);
+    str = clamp(str + touchInput.str, -1, 1);
+  }
 
   if (turn) {
     player.ang += turn * 2.7 * dt;
@@ -1582,7 +1925,7 @@ function updatePlayer(dt) {
     if (player.ang < -Math.PI) player.ang += TAU;
   }
 
-  const sprint = !!(keys.ShiftLeft || keys.ShiftRight);
+  const sprint = !!(keys.ShiftLeft || keys.ShiftRight || touchInput.sprint);
   const speed = sprint ? 4.7 : 3.15;
   const fx = Math.cos(player.ang), fy = Math.sin(player.ang);
   const rx = -fy, ry = fx;
@@ -1639,7 +1982,7 @@ function updatePlayer(dt) {
   game.lowHpPulse += dt * 6;
   if (game.bannerT > 0) game.bannerT -= dt;
 
-  if (mouseDown) tryFire();
+  if (mouseDown || touchInput.firing) tryFire();
 }
 
 const DIRS8 = [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]];
@@ -1828,6 +2171,10 @@ function updateWaves(dt) {
 }
 
 function update(dt) {
+  if (rotateBlocked) {
+    updateParticles(dt);
+    return;
+  }
   updateCamera();
   horizon = VH * 0.5 + player.bobY;
   game.time += dt;
@@ -2219,7 +2566,7 @@ function renderHUD() {
   drawText('SCORE ' + String(game.score).padStart(6, '0'), 10, 20, '#e9f4ff', 1);
   drawText('KILLS ' + String(game.kills), 10, 31, '#7f96a8', 1);
 
-  if (everLocked && !isLocked()) {
+  if (!IS_TOUCH && everLocked && !isLocked()) {
     drawText('CLICK TO CAPTURE MOUSE', W / 2, 10, '#5ee7ff', 1, 'center');
   }
 
@@ -2251,40 +2598,67 @@ function renderHUD() {
   ctx.fillStyle = '#eaffb0';
   ctx.fillRect(px - 1, py - 1, 2, 2);
 
-  // 生命值
+  // 生命值 / 弹药
   const hpFrac = clamp(player.hp / player.maxHp, 0, 1);
   const hpColor = hpFrac > 0.6 ? '#9dff5a' : hpFrac > 0.3 ? '#ffd23a' : '#ff5147';
-  drawText('HP', 12, H - 42, '#8fa6b8', 1);
-  drawText(String(Math.ceil(player.hp)), 12, H - 33, hpColor, 2);
-  const barW = 104, barH = 6, bx = 12, by = H - 17;
-  ctx.fillStyle = 'rgba(0,0,0,.55)';
-  ctx.fillRect(bx - 1, by - 1, barW + 2, barH + 2);
-  ctx.fillStyle = '#17222c';
-  ctx.fillRect(bx, by, barW, barH);
-  ctx.fillStyle = hpColor;
-  ctx.fillRect(bx, by, barW * hpFrac, barH);
-  ctx.fillStyle = 'rgba(0,0,0,.45)';
-  for (let i = 1; i < 10; i++) ctx.fillRect(bx + barW * i / 10, by, 1, barH);
-
-  // 弹药
-  drawText('AMMO', W - 12, H - 47, '#8fa6b8', 1, 'right');
   const lowAmmo = player.mag <= 3;
-  drawText(String(player.mag), W - 12, H - 39, lowAmmo ? '#ff6a5e' : '#e9f4ff', 3, 'right');
+  const pipW = 5, pipGap = 1;
+  const pipTotal = player.magSize * (pipW + pipGap) - pipGap;
 
-  const pipW = 5, pipGap = 1, pipTotal = player.magSize * (pipW + pipGap) - pipGap;
-  const pipX = W - 12 - pipTotal, pipY = H - 12;
-  for (let i = 0; i < player.magSize; i++) {
-    ctx.fillStyle = i < player.mag ? '#5ee7ff' : '#213039';
-    ctx.fillRect(pipX + i * (pipW + pipGap), pipY, pipW, 2);
-  }
-  if (player.reloadT > 0) {
-    const t = 1 - player.reloadT / 1.25;
-    ctx.fillStyle = 'rgba(0,0,0,.6)';
-    ctx.fillRect(pipX - 1, pipY - 1, pipTotal + 2, 4);
-    ctx.fillStyle = '#c8ff3d';
-    ctx.fillRect(pipX, pipY, pipTotal * t, 2);
-  } else if (player.mag === 0) {
-    drawText('RELOADING', W - 12, H - 22, '#ff6a5e', 1, 'right');
+  const drawHpBar = (bx, by, barW, barH) => {
+    ctx.fillStyle = 'rgba(0,0,0,.55)';
+    ctx.fillRect(bx - 1, by - 1, barW + 2, barH + 2);
+    ctx.fillStyle = '#17222c';
+    ctx.fillRect(bx, by, barW, barH);
+    ctx.fillStyle = hpColor;
+    ctx.fillRect(bx, by, barW * hpFrac, barH);
+    ctx.fillStyle = 'rgba(0,0,0,.45)';
+    for (let i = 1; i < 10; i++) ctx.fillRect(bx + barW * i / 10, by, 1, barH);
+  };
+
+  if (IS_TOUCH) {
+    // 触屏：HUD 避开底部两侧的虚拟按键
+    drawText('HP', 10, 45, '#8fa6b8', 1);
+    drawText(String(Math.ceil(player.hp)), 10, 53, hpColor, 2);
+    drawHpBar(10, 70, 88, 5);
+
+    drawText('AMMO', W - 10, 91, '#8fa6b8', 1, 'right');
+    drawText(String(player.mag), W - 10, 99, lowAmmo ? '#ff6a5e' : '#e9f4ff', 2, 'right');
+    const pipX = W - 10 - pipTotal, pipY = 116;
+    for (let i = 0; i < player.magSize; i++) {
+      ctx.fillStyle = i < player.mag ? '#5ee7ff' : '#213039';
+      ctx.fillRect(pipX + i * (pipW + pipGap), pipY, pipW, 2);
+    }
+    if (player.reloadT > 0) {
+      const t = 1 - player.reloadT / 1.25;
+      ctx.fillStyle = 'rgba(0,0,0,.6)';
+      ctx.fillRect(pipX - 1, pipY - 1, pipTotal + 2, 4);
+      ctx.fillStyle = '#c8ff3d';
+      ctx.fillRect(pipX, pipY, pipTotal * t, 2);
+    } else if (player.mag === 0) {
+      drawText('RELOADING', W - 10, pipY + 6, '#ff6a5e', 1, 'right');
+    }
+  } else {
+    drawText('HP', 12, H - 42, '#8fa6b8', 1);
+    drawText(String(Math.ceil(player.hp)), 12, H - 33, hpColor, 2);
+    drawHpBar(12, H - 17, 104, 6);
+
+    drawText('AMMO', W - 12, H - 47, '#8fa6b8', 1, 'right');
+    drawText(String(player.mag), W - 12, H - 39, lowAmmo ? '#ff6a5e' : '#e9f4ff', 3, 'right');
+    const pipX = W - 12 - pipTotal, pipY = H - 12;
+    for (let i = 0; i < player.magSize; i++) {
+      ctx.fillStyle = i < player.mag ? '#5ee7ff' : '#213039';
+      ctx.fillRect(pipX + i * (pipW + pipGap), pipY, pipW, 2);
+    }
+    if (player.reloadT > 0) {
+      const t = 1 - player.reloadT / 1.25;
+      ctx.fillStyle = 'rgba(0,0,0,.6)';
+      ctx.fillRect(pipX - 1, pipY - 1, pipTotal + 2, 4);
+      ctx.fillStyle = '#c8ff3d';
+      ctx.fillRect(pipX, pipY, pipTotal * t, 2);
+    } else if (player.mag === 0) {
+      drawText('RELOADING', W - 12, H - 22, '#ff6a5e', 1, 'right');
+    }
   }
 
   // 准星
@@ -2396,14 +2770,13 @@ function frame(t) {
 /* =========================================================================
    17. 启动
    ========================================================================= */
-const DEBUG = new URLSearchParams(location.search).has('debug');
-const params = new URLSearchParams(location.search);
+const DEBUG = QUERY.has('debug');
 
 horizon = VH * 0.5;
 updateCamera();
 requestAnimationFrame(frame);
 
-if (params.has('autostart')) {
+if (QUERY.has('autostart')) {
   setTimeout(() => { startGame(); }, 40);
 }
 
