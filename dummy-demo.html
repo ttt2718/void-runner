@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
-<title>DUMMY TEST · 5 BARS × 64 SEGMENTS</title>
+<title>DUMMY TEST · CONFIGURABLE</title>
 <meta name="theme-color" content="#05070c" />
 <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Crect%20width='32'%20height='32'%20fill='%2305070c'/%3E%3Cpath%20d='M16%205v8M16%2019v8M5%2016h8M19%2016h8'%20stroke='%23c8ff3d'%20stroke-width='3'/%3E%3Crect%20x='13'%20y='13'%20width='6'%20height='6'%20fill='%23ff4438'/%3E%3C/svg%3E" />
 <style>
@@ -220,7 +220,7 @@
       <label>单发伤害 <span>HP</span><input id="cfg-damage" type="number" min="1" max="1000000000" step="1" value="5000"></label>
       <label>每格血量 <span>HP</span><input id="cfg-cell" type="number" min="1" max="1000000" step="1" value="50"></label>
       <label>血条长度 <span>格</span><input id="cfg-len" type="number" min="8" max="128" step="1" value="64"></label>
-      <label>血条条数 <span>条</span><input id="cfg-bars" type="number" min="1" max="5" step="1" value="5"></label>
+      <label>血条条数 <span>条</span><input id="cfg-bars" type="number" min="1" max="20" step="1" value="20"></label>
       <label>子弹总数 <span>发</span><input id="cfg-mag" type="number" min="1" max="999" step="1" value="99"></label>
       <div class="cfg-actions">
         <span class="cfg-hint">数值在开始测试时生效</span>
@@ -1693,7 +1693,7 @@ const DEMO_DEFAULTS = {
   damage: 5000,
   cellHp: 50,
   segs: 64,
-  bars: 5,
+  bars: 20,
   mag: 99
 };
 const cfg = { ...DEMO_DEFAULTS, fireCd: 0.056 };
@@ -1717,7 +1717,7 @@ function readConfig() {
   cfg.damage = read('cfg-damage', DEMO_DEFAULTS.damage, 1, 1e9, true);
   cfg.cellHp = read('cfg-cell', DEMO_DEFAULTS.cellHp, 1, 1e6, true);
   cfg.segs = read('cfg-len', DEMO_DEFAULTS.segs, 8, 128, true);
-  cfg.bars = read('cfg-bars', DEMO_DEFAULTS.bars, 1, 5, true);
+  cfg.bars = read('cfg-bars', DEMO_DEFAULTS.bars, 1, 20, true);
   cfg.mag = read('cfg-mag', DEMO_DEFAULTS.mag, 1, 999, true);
 }
 
@@ -2873,7 +2873,7 @@ function renderDummyBars(e) {
   const maxRows = cfg.bars;
   const baseY = clamp(Math.round(pt.y - 8), 8, VH - 8);
   const x = Math.round(pt.x - W / 2);
-  const colors = ['#ff4438', '#ff9a2a', '#ffe45e', '#7dff8a', '#5ee7ff'];
+  const barColor = (i) => 'hsl(' + ((i * 137.508) % 360).toFixed(1) + ', 82%, 58%)';
   let topY = baseY;
   const activeRow = hp > 0 ? Math.min(maxRows - 1, Math.floor((hp - 1) / ROW_HP)) : -1;
 
@@ -2888,7 +2888,7 @@ function renderDummyBars(e) {
 
     const cf = rhp / ROW_HP;
     const gf = rghost / ROW_HP;
-    const c = colors[r % colors.length];
+    const c = barColor(r);
 
     ctx.globalAlpha = 1;
     ctx.fillStyle = 'rgba(0,0,0,.78)';
