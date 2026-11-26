@@ -1,5 +1,7 @@
 # VOID RUNNER
 
+![VOID RUNNER](preview.png)
+
 一个单文件、零外部素材的浏览器 FPS demo：用 **2D 网格 + 光线投射（raycasting）** 模拟第一人称 3D 视角，画面全部是像素风，贴图 / 敌人 / 枪械 / 音效都由代码在运行时生成。
 
 ## 运行
