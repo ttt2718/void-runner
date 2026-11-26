@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
-<title>DUMMY TEST · 5 BARS × 32 SEGMENTS</title>
+<title>DUMMY TEST · 5 BARS × 64 SEGMENTS</title>
 <meta name="theme-color" content="#05070c" />
 <link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Crect%20width='32'%20height='32'%20fill='%2305070c'/%3E%3Cpath%20d='M16%205v8M16%2019v8M5%2016h8M19%2016h8'%20stroke='%23c8ff3d'%20stroke-width='3'/%3E%3Crect%20x='13'%20y='13'%20width='6'%20height='6'%20fill='%23ff4438'/%3E%3C/svg%3E" />
 <style>
@@ -194,10 +194,10 @@
 
 <div id="menu" class="overlay">
   <div class="panel">
-    <div class="eyebrow">TRAINING RANGE · 5 BARS × 32 SEGMENTS</div>
+    <div class="eyebrow">TRAINING RANGE · 5 BARS × 64 SEGMENTS</div>
     <h1>DUMMY <span>TEST</span></h1>
-    <p class="sub">一只不会还手的 <b>Gunner 木桩</b>，血量 <b>1600</b>。<br>
-      5 条血 × 32 格 × 10 HP；每格都对应真实血量。<br>
+    <p class="sub">一只不会还手的 <b>Gunner 木桩</b>，血量 <b>3200</b>。<br>
+      5 条血 × 64 格 × 10 HP；每格都对应真实血量。<br>
       用 34 伤害的脉冲步枪打空它，打完后自动重置。</p>
     <div class="keys desktop-only">
       <div><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd><span>移动</span></div>
@@ -1657,7 +1657,7 @@ function startGame() {
 }
 
 /* ---------- 5 条血 Gunner 木桩试玩 ---------- */
-const DUMMY_MAX_HP = 1600;          // 5 条 × 32 格 × 10 HP
+const DUMMY_MAX_HP = 3200;          // 5 条 × 64 格 × 10 HP
 const DUMMY_X = 12.5, DUMMY_Y = 15.9;
 let dummy = null;
 let dummyRespawnT = 0;
@@ -2795,7 +2795,7 @@ function renderDummyBars(e) {
   if (col < 0 || col >= VW) return;
   if (pt.d >= zbuf[col] - 0.02) return;
 
-  const W = 120, ROW_H = 6, GAP = 2, ROW_HP = 320, SEGS = 32;
+  const W = 180, ROW_H = 6, GAP = 2, ROW_HP = 640, SEGS = 64;
   const hp = Math.max(0, e.hp);
   const ghost = Math.max(0, e.ghostHp);
   const maxRows = Math.ceil(e.maxHp / ROW_HP);
@@ -2833,7 +2833,7 @@ function renderDummyBars(e) {
       ctx.fillRect(x, y, W * cf, ROW_H);
     }
 
-    // 32 格，每格严格 10 HP
+    // 64 格，每格严格 10 HP
     ctx.fillStyle = 'rgba(0,0,0,.52)';
     for (let i = 1; i < SEGS; i++) {
       const sx = x + Math.round(W * i / SEGS);
