@@ -1043,48 +1043,18 @@ function fillRect(x0, y0, x1, y1, v) {
   for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) setCell(x, y, v);
 }
 
-// 外墙 + 空地
+// 一条 3 格宽的直道：玩家在西端，敌人在东端固定点位刷新
 fillRect(0, 0, MW - 1, MH - 1, 1);
-fillRect(1, 1, MW - 2, MH - 2, 0);
+fillRect(1, 1, MW - 2, MH - 2, 1);
+fillRect(1, 11, MW - 2, 13, 0);
+fillRect(1, 10, MW - 2, 10, 4);
+fillRect(1, 14, MW - 2, 14, 4);
 
-// 中央科技密室（四面开门）
-fillRect(9, 9, 14, 9, 3);
-fillRect(9, 14, 14, 14, 3);
-fillRect(9, 9, 9, 14, 3);
-fillRect(14, 9, 14, 14, 3);
-setCell(11, 9, 0); setCell(12, 9, 0);
-setCell(11, 14, 0); setCell(12, 14, 0);
-setCell(9, 11, 0); setCell(9, 12, 0);
-setCell(14, 11, 0); setCell(14, 12, 0);
-fillRect(11, 11, 12, 12, 5);          // 中央虚空方尖碑
-
-// 四角石台
-fillRect(3, 3, 5, 5, 2);
-fillRect(18, 3, 20, 5, 2);
-fillRect(3, 18, 5, 20, 2);
-fillRect(18, 18, 20, 20, 2);
-
-// 警示掩体
-fillRect(7, 6, 10, 6, 4);
-fillRect(13, 6, 16, 6, 4);
-fillRect(7, 17, 10, 17, 4);
-fillRect(13, 17, 16, 17, 4);
-
-// 立柱
-setCell(7, 8, 6); setCell(16, 8, 6);
-setCell(7, 15, 6); setCell(16, 15, 6);
-
-// 侧翼短墙
-fillRect(4, 9, 4, 10, 4);
-fillRect(19, 13, 19, 14, 4);
-fillRect(9, 4, 9, 5, 4);
-fillRect(14, 18, 14, 19, 4);
-
+// 直道远端固定刷新点（只在这 9 个位置）
 const SPAWNS = [
-  { x: 2.5, y: 2.5 }, { x: 21.5, y: 2.5 }, { x: 2.5, y: 21.5 }, { x: 21.5, y: 21.5 },
-  { x: 12.5, y: 2.5 }, { x: 2.5, y: 12.5 }, { x: 21.5, y: 12.5 }, { x: 11.5, y: 21.5 },
-  { x: 7.5, y: 4.5 }, { x: 16.5, y: 19.5 }, { x: 4.5, y: 12.5 }, { x: 19.5, y: 8.5 },
-  { x: 12.5, y: 6.5 }, { x: 8.5, y: 9.5 }, { x: 15.5, y: 14.5 }
+  { x: 15.5, y: 11.5 }, { x: 18.5, y: 11.5 }, { x: 21.5, y: 11.5 },
+  { x: 15.5, y: 12.5 }, { x: 18.5, y: 12.5 }, { x: 21.5, y: 12.5 },
+  { x: 15.5, y: 13.5 }, { x: 18.5, y: 13.5 }, { x: 21.5, y: 13.5 }
 ];
 
 function isOpenCell(x, y) {
@@ -1126,7 +1096,7 @@ let dirX = 1, dirY = 0, planeX = 0, planeY = 0, horizon = 0;
 const PLANE = 0.72;
 
 const player = {
-  x: 12.5, y: 19.5, ang: -Math.PI / 2,
+  x: 6.5, y: 12.5, ang: 0,
   hp: 100, maxHp: 100,
   vx: 0, vy: 0,
   mag: 50, magSize: 50,
@@ -1489,7 +1459,7 @@ function toMenu() {
   game.kills = 0;
   game.wave = 0;
   player.hp = player.maxHp;
-  player.x = 12.5; player.y = 19.5; player.ang = -Math.PI / 2;
+  player.x = 6.5; player.y = 12.5; player.ang = 0;
   player.mag = player.magSize;
   player.reloadT = 0;
   player.recoil = 0;
@@ -1725,7 +1695,7 @@ function startGame() {
   growth.damageLv = 0; growth.rateLv = 0; growth.magLv = 0; growth.critLv = 0;
   player.magSize = stats().mag;
 
-  player.x = 12.5; player.y = 19.5; player.ang = -Math.PI / 2;
+  player.x = 6.5; player.y = 12.5; player.ang = 0;
   player.hp = player.maxHp;
   player.vx = 0; player.vy = 0;
   player.mag = player.magSize; player.fireCd = 0; player.reloadT = 0;
@@ -1776,15 +1746,14 @@ function startWave(n) {
     if (n >= 2 && i % 4 === 1) t = 'gunner';
     if (n >= 4 && i % 5 === 3) t = 'drone';
     if (n >= 7 && i % 3 === 2) t = 'grunt';
-    game.pending.push(t);
+    const p = SPAWNS[i % SPAWNS.length];
+    game.pending.push({ type: t, x: p.x, y: p.y });
   }
-  if (n >= 3 && !game.pending.includes('drone')) game.pending[1] = 'drone';
-  if (n >= 2 && !game.pending.includes('gunner')) game.pending[0] = 'gunner';
 
-  // 第一波在正前方放一个“迎宾”敌人，避免开场空场
+  // 第一波在直道远端固定点放一个“迎宾”敌人
   if (n === 1) {
     game.pending.pop();
-    const scout = spawnEnemyAt('grunt', 12.5, 15.6);
+    const scout = spawnEnemyAt('grunt', 18.5, 12.5);
     scout.atkCd = 1.6;
     game.spawnTimer = 1.4;
   }
@@ -1869,7 +1838,7 @@ function corePrestige() {
 /* --- 出生点可达性检查（基于初始玩家位置） --- */
 const SPAWN_POINTS = (() => {
   const seen = new Uint8Array(MW * MH);
-  const start = 19 * MW + 12;
+  const start = 12 * MW + 6;
   const q = [start];
   seen[start] = 1;
   while (q.length) {
@@ -2505,9 +2474,9 @@ function updateWaves(dt) {
       if (game.spawnTimer <= 0) {
         const alive = game.enemies.reduce((n, e) => n + (e.dead ? 0 : 1), 0);
         if (alive < 12) {
-          const sp = pickSpawnPoint();
-          if (sp) {
-            spawnEnemyAt(game.pending.shift(), sp.x, sp.y);
+          const next = game.pending.shift();
+          if (next) {
+            spawnEnemyAt(next.type, next.x, next.y);
             game.spawnTimer = 0.58;
           } else {
             game.spawnTimer = 0.35;
