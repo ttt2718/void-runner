@@ -63,6 +63,22 @@
   .btn.ghost{background:transparent; color:#b9d3e6; border:1px solid #335064; border-bottom-width:3px}
   .btn.ghost:hover{color:#fff; border-color:#5ee7ff}
   .row{display:flex; align-items:center; gap:14px; flex-wrap:wrap}
+  #menu .panel{max-height:calc(100vh - 24px); overflow-y:auto}
+  .cfg{display:grid; grid-template-columns:1fr 1fr; gap:7px 16px; margin:12px 0 18px; text-align:left}
+  .cfg label{display:flex; align-items:center; justify-content:space-between; gap:8px;
+    font-size:10px; letter-spacing:.08em; color:#9db2c5;
+    border-bottom:1px dashed rgba(120,150,175,.18); padding-bottom:5px}
+  .cfg label span{font-size:8px; color:#5f7488; letter-spacing:.1em}
+  .cfg input{width:82px; background:#09131b; border:1px solid #2b4354; color:#e9f4ff;
+    font-family:inherit; font-size:11px; padding:3px 5px; text-align:right; border-radius:2px}
+  .cfg input:focus{outline:1px solid #5ee7ff; border-color:#5ee7ff}
+  .cfg-actions{grid-column:1/-1; display:flex; align-items:center; justify-content:space-between;
+    gap:10px; margin-top:2px}
+  .cfg-hint{font-size:9px; letter-spacing:.14em; color:#5f7488; text-transform:uppercase}
+  .mini-btn{cursor:pointer; font-family:inherit; font-size:10px; letter-spacing:.16em;
+    color:#b9d3e6; background:#0a141c; border:1px solid #335064; border-bottom-width:2px;
+    padding:6px 10px; text-transform:uppercase}
+  .mini-btn:hover{color:#fff; border-color:#5ee7ff}
   .stat{display:flex; gap:34px; margin:8px 0 26px; flex-wrap:wrap}
   .stat div{font-size:10px; letter-spacing:.22em; color:#728ba0}
   .stat b{display:block; font-size:30px; color:var(--acid); letter-spacing:.04em; margin-top:6px; font-weight:600}
@@ -70,7 +86,7 @@
   #gameover .panel{border-color:rgba(255,68,56,.35)}
   #gameover h1{color:#ff6a5e; text-shadow:0 0 24px rgba(255,68,56,.3)}
   .tag{display:inline-block; font-size:9px; letter-spacing:.28em; padding:4px 8px; border:1px solid #2a4153; color:#7c9ab2; margin-bottom:16px}
-  @media (max-width:640px){ .panel{padding:24px 20px} .keys{grid-template-columns:1fr} .stat{gap:22px} }
+  @media (max-width:640px){ .panel{padding:24px 20px} .keys{grid-template-columns:1fr} .stat{gap:22px} .cfg{grid-template-columns:1fr} }
 
   /* ===== 移动端 / 触屏 ===== */
   .touch-only{display:none}
@@ -194,11 +210,23 @@
 
 <div id="menu" class="overlay">
   <div class="panel">
-    <div class="eyebrow">TRAINING RANGE · 5 BARS × 64 SEGMENTS</div>
+    <div class="eyebrow">TRAINING RANGE · CONFIGURABLE</div>
     <h1>DUMMY <span>TEST</span></h1>
-    <p class="sub">一只不会还手的 <b>Gunner 木桩</b>，血量 <b>16000</b>。<br>
-      5 条血 × 64 格 × 50 HP；每格都对应真实血量。<br>
-      弹匣 99 / 射速翻倍；用 5000 伤害打空它，打完后自动重置。</p>
+    <p class="sub">一只不会还手的 <b>Gunner 木桩</b>。<br>
+      开始测试时应用下面的参数；血量 = 每格血量 × 格数 × 条数。<br>
+      打空后自动重置，可以回主菜单继续调。</p>
+    <div class="cfg">
+      <label>射速 <span>发/秒</span><input id="cfg-fire" type="number" min="1" max="60" step="0.1" value="17.86"></label>
+      <label>单发伤害 <span>HP</span><input id="cfg-damage" type="number" min="1" max="1000000000" step="1" value="5000"></label>
+      <label>每格血量 <span>HP</span><input id="cfg-cell" type="number" min="1" max="1000000" step="1" value="50"></label>
+      <label>血条长度 <span>格</span><input id="cfg-len" type="number" min="8" max="128" step="1" value="64"></label>
+      <label>血条条数 <span>条</span><input id="cfg-bars" type="number" min="1" max="5" step="1" value="5"></label>
+      <label>子弹总数 <span>发</span><input id="cfg-mag" type="number" min="1" max="999" step="1" value="99"></label>
+      <div class="cfg-actions">
+        <span class="cfg-hint">数值在开始测试时生效</span>
+        <button class="mini-btn" id="cfg-default" type="button">DEFAULT</button>
+      </div>
+    </div>
     <div class="keys desktop-only">
       <div><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd><span>移动</span></div>
       <div><kbd>鼠标</kbd><span>转向</span></div>
@@ -1594,6 +1622,7 @@ resizeView();
    ========================================================================= */
 // 先处理全屏/指针锁定，再初始化音频，避免用户手势被提前消耗
 $('#btn-start').addEventListener('click', () => { startGame(); Sound.init(); });
+$('#cfg-default').addEventListener('click', () => { resetConfigInputs(); });
 $('#btn-resume').addEventListener('click', () => { resumeGame(); Sound.init(); });
 $('#btn-quit').addEventListener('click', () => { toMenu(); banner('', '', 0); });
 $('#btn-retry').addEventListener('click', () => { startGame(); Sound.init(); });
@@ -1611,6 +1640,8 @@ function banner(text, sub, dur) {
 }
 
 function startGame() {
+  readConfig();
+  player.magSize = cfg.mag;
   state = 'playing';
   $('#menu').classList.add('hidden');
   $('#pause').classList.add('hidden');
@@ -1656,21 +1687,59 @@ function startGame() {
   syncTouchUI();
 }
 
-/* ---------- 5 条血 Gunner 木桩试玩 ---------- */
-const DUMMY_MAX_HP = 16000;         // 5 条 × 64 格 × 50 HP
+/* ---------- 可配置 Gunner 木桩试玩 ---------- */
+const DEMO_DEFAULTS = {
+  fireRate: 1 / 0.056,
+  damage: 5000,
+  cellHp: 50,
+  segs: 64,
+  bars: 5,
+  mag: 99
+};
+const cfg = { ...DEMO_DEFAULTS, fireCd: 0.056 };
 const DUMMY_X = 12.5, DUMMY_Y = 15.9;
 let dummy = null;
 let dummyRespawnT = 0;
+
+function readConfig() {
+  const read = (id, def, min, max, round) => {
+    const el = document.getElementById(id);
+    if (!el) return def;
+    let v = parseFloat(el.value);
+    if (!Number.isFinite(v)) v = def;
+    v = clamp(v, min, max);
+    if (round) v = Math.round(v);
+    el.value = round ? String(v) : v.toFixed(2);
+    return v;
+  };
+  cfg.fireRate = read('cfg-fire', DEMO_DEFAULTS.fireRate, 1, 60, false);
+  cfg.fireCd = 1 / cfg.fireRate;
+  cfg.damage = read('cfg-damage', DEMO_DEFAULTS.damage, 1, 1e9, true);
+  cfg.cellHp = read('cfg-cell', DEMO_DEFAULTS.cellHp, 1, 1e6, true);
+  cfg.segs = read('cfg-len', DEMO_DEFAULTS.segs, 8, 128, true);
+  cfg.bars = read('cfg-bars', DEMO_DEFAULTS.bars, 1, 5, true);
+  cfg.mag = read('cfg-mag', DEMO_DEFAULTS.mag, 1, 999, true);
+}
+
+function resetConfigInputs() {
+  document.getElementById('cfg-fire').value = DEMO_DEFAULTS.fireRate.toFixed(2);
+  document.getElementById('cfg-damage').value = DEMO_DEFAULTS.damage;
+  document.getElementById('cfg-cell').value = DEMO_DEFAULTS.cellHp;
+  document.getElementById('cfg-len').value = DEMO_DEFAULTS.segs;
+  document.getElementById('cfg-bars').value = DEMO_DEFAULTS.bars;
+  document.getElementById('cfg-mag').value = DEMO_DEFAULTS.mag;
+}
 
 function spawnDummy() {
   for (let i = game.enemies.length - 1; i >= 0; i--) {
     if (game.enemies[i].dummy) game.enemies.splice(i, 1);
   }
   const e = spawnEnemyAt('gunner', DUMMY_X, DUMMY_Y);
+  const totalHp = cfg.cellHp * cfg.segs * cfg.bars;
   e.dummy = true;
-  e.maxHp = DUMMY_MAX_HP;
-  e.hp = DUMMY_MAX_HP;
-  e.ghostHp = DUMMY_MAX_HP;
+  e.maxHp = totalHp;
+  e.hp = totalHp;
+  e.ghostHp = totalHp;
   e.ghostHold = 0;
   e.barShowT = 9999;
   e.barHidden = false;
@@ -2072,7 +2141,7 @@ function fireHitscan(spread) {
     const def = ETYPES[best.type];
     const pt = worldToScreen(best.x, best.y, def.eyeH);
     if (pt) spawnBlood(pt.x, pt.y, 12);
-    damageEnemy(best, 5000, ang);
+    damageEnemy(best, cfg.damage, ang);
     game.hits++;
     game.hitMarker = 0.18;
   } else {
@@ -2087,7 +2156,7 @@ function tryFire() {
   if (player.reloadT > 0 || player.fireCd > 0) return;
   if (player.mag <= 0) { startReload(); return; }
   player.mag--;
-  player.fireCd = 0.056;
+  player.fireCd = cfg.fireCd;
   player.muzzleT = 0.055;
   player.recoil = 1;
   game.shake = Math.max(game.shake, 1.6);
@@ -2795,10 +2864,13 @@ function renderDummyBars(e) {
   if (col < 0 || col >= VW) return;
   if (pt.d >= zbuf[col] - 0.02) return;
 
-  const W = 180, ROW_H = 6, STEP = 3, ROW_HP = 3200, SEGS = 64;
+  const SEGS = cfg.segs;
+  const ROW_HP = cfg.cellHp * SEGS;
+  const W = clamp(SEGS * 2.8, 60, 380);
+  const ROW_H = 6, STEP = 3;
   const hp = Math.max(0, e.hp);
   const ghost = Math.max(0, e.ghostHp);
-  const maxRows = Math.ceil(e.maxHp / ROW_HP);
+  const maxRows = cfg.bars;
   const baseY = clamp(Math.round(pt.y - 8), 8, VH - 8);
   const x = Math.round(pt.x - W / 2);
   const colors = ['#ff4438', '#ff9a2a', '#ffe45e', '#7dff8a', '#5ee7ff'];
@@ -2833,7 +2905,7 @@ function renderDummyBars(e) {
       ctx.fillRect(x, y, W * cf, ROW_H);
     }
 
-    // 64 格，每格严格 50 HP
+    // 每格严格 cfg.cellHp HP
     ctx.fillStyle = 'rgba(0,0,0,.52)';
     for (let i = 1; i < SEGS; i++) {
       const sx = x + Math.round(W * i / SEGS);
@@ -3031,8 +3103,7 @@ function renderHUD() {
   const hpFrac = clamp(player.hp / player.maxHp, 0, 1);
   const hpColor = hpFrac > 0.6 ? '#9dff5a' : hpFrac > 0.3 ? '#ffd23a' : '#ff5147';
   const lowAmmo = player.mag <= 3;
-  const pipW = player.magSize > 20 ? 1 : 5, pipGap = 1;
-  const pipTotal = player.magSize * (pipW + pipGap) - pipGap;
+  const ammoText = player.mag + '/' + player.magSize;
 
   const drawHpBar = (bx, by, barW, barH) => {
     ctx.fillStyle = 'rgba(0,0,0,.55)';
@@ -3052,20 +3123,11 @@ function renderHUD() {
     drawHpBar(10, 70, 88, 5);
 
     drawText('AMMO', W - 10, 91, '#8fa6b8', 1, 'right');
-    drawText(String(player.mag), W - 10, 99, lowAmmo ? '#ff6a5e' : '#e9f4ff', 2, 'right');
-    const pipX = W - 10 - pipTotal, pipY = 116;
-    for (let i = 0; i < player.magSize; i++) {
-      ctx.fillStyle = i < player.mag ? '#5ee7ff' : '#213039';
-      ctx.fillRect(pipX + i * (pipW + pipGap), pipY, pipW, 2);
-    }
+    drawText(ammoText, W - 10, 99, lowAmmo ? '#ff6a5e' : '#e9f4ff', 2, 'right');
     if (player.reloadT > 0) {
-      const t = 1 - player.reloadT / 1.25;
-      ctx.fillStyle = 'rgba(0,0,0,.6)';
-      ctx.fillRect(pipX - 1, pipY - 1, pipTotal + 2, 4);
-      ctx.fillStyle = '#c8ff3d';
-      ctx.fillRect(pipX, pipY, pipTotal * t, 2);
+      drawText('RELOADING', W - 10, 118, '#c8ff3d', 1, 'right');
     } else if (player.mag === 0) {
-      drawText('RELOADING', W - 10, pipY + 6, '#ff6a5e', 1, 'right');
+      drawText('RELOADING', W - 10, 118, '#ff6a5e', 1, 'right');
     }
   } else {
     drawText('HP', 12, H - 42, '#8fa6b8', 1);
@@ -3073,18 +3135,9 @@ function renderHUD() {
     drawHpBar(12, H - 17, 104, 6);
 
     drawText('AMMO', W - 12, H - 47, '#8fa6b8', 1, 'right');
-    drawText(String(player.mag), W - 12, H - 39, lowAmmo ? '#ff6a5e' : '#e9f4ff', 3, 'right');
-    const pipX = W - 12 - pipTotal, pipY = H - 12;
-    for (let i = 0; i < player.magSize; i++) {
-      ctx.fillStyle = i < player.mag ? '#5ee7ff' : '#213039';
-      ctx.fillRect(pipX + i * (pipW + pipGap), pipY, pipW, 2);
-    }
+    drawText(ammoText, W - 12, H - 39, lowAmmo ? '#ff6a5e' : '#e9f4ff', 2, 'right');
     if (player.reloadT > 0) {
-      const t = 1 - player.reloadT / 1.25;
-      ctx.fillStyle = 'rgba(0,0,0,.6)';
-      ctx.fillRect(pipX - 1, pipY - 1, pipTotal + 2, 4);
-      ctx.fillStyle = '#c8ff3d';
-      ctx.fillRect(pipX, pipY, pipTotal * t, 2);
+      drawText('RELOADING', W - 12, H - 22, '#c8ff3d', 1, 'right');
     } else if (player.mag === 0) {
       drawText('RELOADING', W - 12, H - 22, '#ff6a5e', 1, 'right');
     }
