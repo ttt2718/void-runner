@@ -1123,7 +1123,7 @@ const GROWTH_BASE = {
   fireRate: 1 / (0.112 / 2), // 17.86/s
   mag: 50,
   crit: 0.05,
-  critMult: 2.5
+  critMult: 2.3
 };
 const growth = {
   scrap: 0, core: 0,
@@ -1134,7 +1134,7 @@ const TIER_NAMES = ['MK I', 'MK II', 'MK III', 'MK IV'];
 function coreMult() { return 1 + growth.core * 0.25; }
 function stats() {
   return {
-    damage: GROWTH_BASE.damage * Math.pow(1.3, growth.damageLv) * coreMult(),
+    damage: GROWTH_BASE.damage * Math.pow(1.27, growth.damageLv) * coreMult(),
     fireRate: Math.min(60, GROWTH_BASE.fireRate * Math.pow(1.12, growth.rateLv)),
     mag: GROWTH_BASE.mag + growth.magLv * 10,
     crit: Math.min(0.75, GROWTH_BASE.crit + growth.critLv * 0.03),
@@ -1143,12 +1143,12 @@ function stats() {
 }
 function upgradeCost(kind) {
   const base = { damage: 10, rate: 14, mag: 8, crit: 16 };
-  const mult = { damage: 1.55, rate: 1.65, mag: 1.5, crit: 1.7 };
+  const mult = { damage: 1.52, rate: 1.6, mag: 1.47, crit: 1.65 };
   return Math.round(base[kind] * Math.pow(mult[kind], growth[kind + 'Lv']));
 }
 function scrapFor(e) {
   const base = e.type === 'gunner' ? 16 : e.type === 'drone' ? 6 : 8;
-  return Math.round(base * Math.pow(1.35, game.wave - 1) * (1 + growth.core * 0.1));
+  return Math.round(base * Math.pow(1.33, game.wave - 1) * (1 + growth.core * 0.1));
 }
 function dmgText(n) {
   if (n < 1000) return String(Math.round(n * 10) / 10);
@@ -1878,7 +1878,7 @@ function pickSpawnPoint() {
 function spawnEnemyAt(type, x, y) {
   const def = ETYPES[type];
   const wf = game.wave;
-  const hpScale = Math.pow(1.42, wf - 1);
+  const hpScale = Math.pow(1.38, wf - 1);
   const maxHp = def.hp * hpScale;
   const e = {
     type, x, y,
@@ -2489,7 +2489,7 @@ function updateWaves(dt) {
       game.waveActive = false;
       const bonus = 200 + game.wave * 120;
       game.score += bonus;
-      const scrapBonus = Math.round(15 * Math.pow(1.35, game.wave - 1) * (1 + growth.core * 0.1));
+      const scrapBonus = Math.round(15 * Math.pow(1.33, game.wave - 1) * (1 + growth.core * 0.1));
       growth.scrap += scrapBonus;
       player.hp = Math.min(player.maxHp, player.hp + 20);
       banner('WAVE CLEAR', '+' + scrapBonus + ' SCRAP', 2.2);
