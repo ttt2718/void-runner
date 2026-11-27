@@ -2327,10 +2327,21 @@ function bulletImpact(type, wx, wy, vOff, big) {
 
 function spawnBulletVisual(type, ang, endX, endY, beam) {
   const m = muzzleScreenPos();
-  // 分叉弹按各自命中的射线散开；其余固定枪口 -> 准星中心
+  // 分叉弹沿各自射线的固定射程展开，不吸附到命中目标；其余固定枪口 -> 准星中心
   const forked = type === 'fairy' || type === 'goblin';
   const fixedEnd = { x: Math.round(VW / 2), y: Math.round(VH / 2) };
-  const endPt = forked ? (worldToScreen(endX, endY, 0.55) || fixedEnd) : fixedEnd;
+  let endPt = fixedEnd;
+  let visualDist = Math.hypot(endX - player.x, endY - player.y);
+  let visualEndX = endX, visualEndY = endY;
+  if (forked) {
+    const rdx = Math.cos(ang), rdy = Math.sin(ang);
+    const range = 10;
+    const wd = Math.min(range, rayWall(player.x, player.y, rdx, rdy, range));
+    visualEndX = player.x + rdx * wd;
+    visualEndY = player.y + rdy * wd;
+    visualDist = wd;
+    endPt = worldToScreen(visualEndX, visualEndY, 0.55) || fixedEnd;
+  }
   if (beam) {
     game.bullets.push({
       kind: 'beam', type,
@@ -2338,14 +2349,13 @@ function spawnBulletVisual(type, ang, endX, endY, beam) {
       t: 0, life: 0.14
     });
   } else {
-    const dist = Math.hypot(endX - player.x, endY - player.y);
     const speed = type === 'angel' ? 42 : type === 'undead' ? 38 : type === 'demon' ? 36 :
       type === 'goblin' ? 66 : type === 'fairy' ? 78 : 70;
     game.bullets.push({
       kind: 'travel', type,
       x: m.x, y: m.y, sx: m.x, sy: m.y,
       ex: endPt.x, ey: endPt.y,
-      t: 0, life: Math.max(0.05, dist / speed), trail: []
+      t: 0, life: Math.max(0.05, visualDist / speed), trail: []
     });
   }
   if (game.bullets.length > 180) game.bullets.splice(0, game.bullets.length - 180);
