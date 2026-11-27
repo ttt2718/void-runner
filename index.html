@@ -70,6 +70,19 @@
   .shop-stats b{display:block; margin-top:4px; font-size:22px; font-weight:600;
     letter-spacing:.04em; color:#ffe45e}
   .shop-grid{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:18px}
+  #loadout .panel{width:min(820px,100%); max-height:calc(100vh - 24px); overflow-y:auto}
+  .bullet-grid{display:grid; grid-template-columns:1fr 1fr; gap:8px; margin:12px 0 18px}
+  .bullet-option{display:grid; grid-template-columns:10px 1fr; grid-template-rows:auto auto; gap:2px 10px;
+    text-align:left; cursor:pointer; padding:9px 11px; font-family:inherit; color:#e9f4ff;
+    background:linear-gradient(180deg,rgba(20,34,46,.96),rgba(7,14,21,.96));
+    border:1px solid #2b4354; border-bottom-width:3px; transition:border-color .12s, filter .12s}
+  .bullet-option:hover{border-color:#5ee7ff; filter:brightness(1.12)}
+  .bullet-option.selected{border-color:#c8ff3d; background:linear-gradient(180deg,rgba(38,58,28,.96),rgba(12,22,14,.96))}
+  .b-dot{grid-row:1 / 3; width:9px; height:9px; border-radius:50%; margin-top:4px; align-self:start;
+    box-shadow:0 0 9px currentColor}
+  .b-name{font-size:11px; font-weight:700; letter-spacing:.15em}
+  .b-desc{font-size:9px; letter-spacing:.04em; color:#8fa6b8}
+  .bullet-option.selected .b-name{color:#eaffb0}
   .up{display:grid; grid-template-columns:1fr auto; gap:5px 12px; text-align:left; cursor:pointer;
     padding:11px 13px; font-family:inherit; color:#e9f4ff;
     background:linear-gradient(180deg,rgba(20,34,46,.96),rgba(7,14,21,.96));
@@ -92,7 +105,7 @@
   #gameover .panel{border-color:rgba(255,68,56,.35)}
   #gameover h1{color:#ff6a5e; text-shadow:0 0 24px rgba(255,68,56,.3)}
   .tag{display:inline-block; font-size:9px; letter-spacing:.28em; padding:4px 8px; border:1px solid #2a4153; color:#7c9ab2; margin-bottom:16px}
-  @media (max-width:640px){ .panel{padding:24px 20px} .keys{grid-template-columns:1fr} .stat{gap:22px} .shop-grid{grid-template-columns:1fr} }
+  @media (max-width:640px){ .panel{padding:24px 20px} .keys{grid-template-columns:1fr} .stat{gap:22px} .shop-grid{grid-template-columns:1fr} .bullet-grid{grid-template-columns:1fr} }
 
   /* ===== 移动端 / 触屏 ===== */
   .touch-only{display:none}
@@ -180,6 +193,11 @@
     .eyebrow{margin-bottom:6px}
     .foot{display:none}
     .btn{padding:10px 20px}
+    #loadout .panel{padding:12px 16px 10px}
+    #loadout h1{font-size:clamp(22px,7vh,32px)}
+    #loadout .bullet-grid{gap:5px; margin:6px 0 10px}
+    #loadout .bullet-option{padding:6px 8px}
+    #loadout .b-desc{font-size:8px}
     #btn-pause,#btn-full{width:34px; height:34px; font-size:10px}
     #btn-pause{left:calc(50% - 39px)}
     #btn-full{left:calc(50% + 5px)}
@@ -228,6 +246,7 @@
       <div><kbd>左键</kbd><span>射击</span></div>
       <div><kbd>Shift</kbd><span>冲刺</span></div>
       <div><kbd>Esc</kbd><span>暂停</span></div>
+      <div><kbd>B</kbd><span>子弹</span></div>
     </div>
     <div class="keys touch-only">
       <div><kbd>左摇杆</kbd><span>移动</span></div>
@@ -238,6 +257,7 @@
     </div>
     <div class="row">
       <button class="btn" id="btn-start">开始游戏</button>
+      <button class="btn ghost" id="btn-loadout-menu" type="button">子弹</button>
       <span class="desktop-only" style="font-size:11px;color:#63798c;letter-spacing:.12em">建议使用鼠标 + 键盘</span>
       <span class="touch-only" style="font-size:11px;color:#63798c;letter-spacing:.12em">虚拟摇杆 · 自动横屏</span>
     </div>
@@ -253,7 +273,21 @@
     <p class="sub touch-only">游戏已暂停。点击下方按钮返回战场。</p>
     <div class="row">
       <button class="btn" id="btn-resume">继续游戏</button>
+      <button class="btn ghost" id="btn-loadout-pause" type="button">子弹</button>
       <button class="btn ghost" id="btn-quit">回到主菜单</button>
+    </div>
+  </div>
+</div>
+
+<div id="loadout" class="overlay hidden">
+  <div class="panel">
+    <div class="eyebrow">BULLET LOADOUT</div>
+    <h1>选择<span>子弹</span></h1>
+    <p class="sub" id="loadout-stats">所有子弹每发总伤害与峰值 DPS 相同，区别在弹道、范围和目标分配。</p>
+    <div class="bullet-grid" id="bullet-grid"></div>
+    <div class="row">
+      <button class="btn" id="btn-loadout-close" type="button">返回</button>
+      <span class="desktop-only" style="font-size:11px;color:#63798c;letter-spacing:.12em">游戏中按 <kbd>B</kbd> 快速打开</span>
     </div>
   </div>
 </div>
@@ -1111,7 +1145,7 @@ const player = {
 const game = {
   wave: 0, score: 0, kills: 0, shots: 0, hits: 0,
   enemies: [], projectiles: [], pickups: [], particles: [],
-  floats: [], rings: [],
+  bullets: [], floats: [], rings: [],
   pending: [], spawnTimer: 0, intermission: 0, waveActive: false,
   eliteFocus: null,
   time: 0, shake: 0, damageFlash: 0, hitMarker: 0, killMarker: 0,
@@ -1180,6 +1214,31 @@ const ETYPES = {
     score: 80, dmg: 7, range: 1.1, cd: 0.85, melee: true, eyeH: 0.45
   }
 };
+
+/* ===== 子弹派系：每发共享同一伤害预算 ===== */
+const BULLET_TYPES = {
+  standard: { name: 'STANDARD', color: '#e8e8e8', desc: '单体 · 白色小点', kind: 'single' },
+  fairy:    { name: 'FAIRY',    color: '#5ee7ff', desc: '3 针 · 多目标分摊', kind: 'needle' },
+  elven:    { name: 'ELVEN',    color: '#4aa8ff', desc: '穿透光束 · 目标分摊', kind: 'beam' },
+  angel:    { name: 'ANGEL',    color: '#ffe28a', desc: '圣光球 · 小范围溅射', kind: 'aoe', radius: 1.25 },
+  goblin:   { name: 'GOBLIN',   color: '#ff9a3a', desc: '5 弹丸 · 扇形霰弹', kind: 'pellet' },
+  undead:   { name: 'UNDEAD',   color: '#7dff7a', desc: '腐蚀弹 · 范围毒云', kind: 'aoe', radius: 1.1 },
+  demon:    { name: 'DEMON',    color: '#ff4a2a', desc: '火球 · 大范围爆炸', kind: 'aoe', radius: 1.6 }
+};
+const BULLET_COLORS = {
+  standard: ['#ffffff', '#d8d8d8', '#f4f8ff'],
+  fairy: ['#b8fbff', '#5ee7ff', '#e8ffff'],
+  elven: ['#4aa8ff', '#b8e4ff', '#ffd45e'],
+  angel: ['#fff1a8', '#ffd23a', '#ffffff'],
+  goblin: ['#ff9a3a', '#ffd45e', '#ffe9a8'],
+  undead: ['#7dff7a', '#b06cff', '#4bd65a'],
+  demon: ['#ff4a2a', '#ff8a3a', '#ffd08a']
+};
+let selectedBullet = 'standard';
+try {
+  const savedBullet = localStorage.getItem('swarmBullet');
+  if (savedBullet && BULLET_TYPES[savedBullet]) selectedBullet = savedBullet;
+} catch (e) {}
 
 /* --- 寻路流场 --- */
 const flow = new Int16Array(MW * MH);
@@ -1444,16 +1503,19 @@ function toMenu() {
   $('#pause').classList.add('hidden');
   $('#gameover').classList.add('hidden');
   $('#upgrades').classList.add('hidden');
+  $('#loadout').classList.add('hidden');
   $('#menu').classList.remove('hidden');
   $('#app').classList.remove('playing');
   mouseDown = false;
 
   game.enemies.length = 0;
   game.projectiles.length = 0;
+  game.bullets.length = 0;
   game.pickups.length = 0;
   game.particles.length = 0;
   game.floats.length = 0;
   game.rings.length = 0;
+  game.eliteFocus = null;
   game.hitStop = 0;
   game.pending.length = 0;
   game.waveActive = false;
@@ -1475,6 +1537,16 @@ function toMenu() {
 window.addEventListener('keydown', (e) => {
   const code = e.code;
   if (code === 'Tab') return;
+  if (code === 'Escape' && !$('#loadout').classList.contains('hidden')) {
+    closeLoadout();
+    return;
+  }
+  if (code === 'KeyB') {
+    if (!$('#loadout').classList.contains('hidden')) { closeLoadout(); return; }
+    if (state === 'playing') { pauseGame(); openLoadout('pause'); return; }
+    if (state === 'paused') { openLoadout('pause'); return; }
+    if (state === 'menu') { openLoadout('menu'); return; }
+  }
   if (code === 'KeyW' || code === 'KeyA' || code === 'KeyS' || code === 'KeyD' ||
       code === 'Space' || code.startsWith('Arrow') || code === 'ShiftLeft' || code === 'ShiftRight') {
     e.preventDefault();
@@ -1663,6 +1735,55 @@ resizeView();
 /* =========================================================================
    8. 事件绑定 / 启动
    ========================================================================= */
+let loadoutReturn = 'menu';
+function selectBullet(id) {
+  if (!BULLET_TYPES[id]) return;
+  selectedBullet = id;
+  try { localStorage.setItem('swarmBullet', id); } catch (e) {}
+  updateLoadoutUI();
+}
+function updateLoadoutUI() {
+  const grid = $('#bullet-grid');
+  if (!grid.dataset.built) {
+    grid.dataset.built = '1';
+    for (const [id, def] of Object.entries(BULLET_TYPES)) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'bullet-option';
+      b.dataset.id = id;
+      b.innerHTML = '<span class="b-dot" style="color:' + def.color + ';background:' + def.color + '"></span>' +
+        '<span class="b-name">' + def.name + '</span><span class="b-desc">' + def.desc + '</span>';
+      b.addEventListener('click', () => selectBullet(id));
+      grid.appendChild(b);
+    }
+  }
+  for (const b of grid.querySelectorAll('.bullet-option')) {
+    b.classList.toggle('selected', b.dataset.id === selectedBullet);
+  }
+  const s = stats();
+  const total = Math.round(s.damage * 10) / 10;
+  const dps = Math.round(s.damage * s.fireRate * 10) / 10;
+  $('#loadout-stats').textContent =
+    '每发总伤害 ' + total + ' · 峰值 ' + dps + ' DPS · 暴击 ×' + GROWTH_BASE.critMult +
+    '；分配方式不同，总量一致。';
+}
+function openLoadout(from) {
+  loadoutReturn = from;
+  if (from === 'menu') $('#menu').classList.add('hidden');
+  else $('#pause').classList.add('hidden');
+  $('#loadout').classList.remove('hidden');
+  updateLoadoutUI();
+}
+function closeLoadout() {
+  $('#loadout').classList.add('hidden');
+  if (loadoutReturn === 'menu') $('#menu').classList.remove('hidden');
+  else $('#pause').classList.remove('hidden');
+}
+$('#btn-loadout-menu').addEventListener('click', () => openLoadout('menu'));
+$('#btn-loadout-pause').addEventListener('click', () => openLoadout('pause'));
+$('#btn-loadout-close').addEventListener('click', closeLoadout);
+updateLoadoutUI();
+
 // 先处理全屏/指针锁定，再初始化音频，避免用户手势被提前消耗
 $('#btn-start').addEventListener('click', () => { startGame(); Sound.init(); });
 $('#btn-resume').addEventListener('click', () => { resumeGame(); Sound.init(); });
@@ -1693,6 +1814,7 @@ function startGame() {
   $('#pause').classList.add('hidden');
   $('#gameover').classList.add('hidden');
   $('#upgrades').classList.add('hidden');
+  $('#loadout').classList.add('hidden');
   $('#app').classList.add('playing');
 
   growth.scrap = 0;
@@ -1709,10 +1831,12 @@ function startGame() {
   game.score = 0; game.kills = 0; game.shots = 0; game.hits = 0;
   game.enemies.length = 0;
   game.projectiles.length = 0;
+  game.bullets.length = 0;
   game.pickups.length = 0;
   game.particles.length = 0;
   game.floats.length = 0;
   game.rings.length = 0;
+  game.eliteFocus = null;
   game.hitStop = 0;
   game.pending.length = 0;
   game.spawnTimer = 0;
@@ -2015,6 +2139,22 @@ function spawnSparksAt(sx, sy, count) {
   }
 }
 
+function spawnColorBurst(sx, sy, count, colors) {
+  for (let i = 0; i < count; i++) {
+    const life = 0.18 + Math.random() * 0.28;
+    game.particles.push({
+      x: sx + (Math.random() - 0.5) * 5,
+      y: sy + (Math.random() - 0.5) * 5,
+      vx: (Math.random() - 0.5) * 210,
+      vy: -20 - Math.random() * 150,
+      grav: 210,
+      life, maxLife: life,
+      size: Math.random() < 0.3 ? 2 : 1,
+      color: colors[(Math.random() * colors.length) | 0]
+    });
+  }
+}
+
 function spawnFloat(sx, sy, text, color, scale) {
   game.floats.push({
     x: sx + (Math.random() - 0.5) * 10,
@@ -2156,11 +2296,9 @@ function die() {
   setTimeout(() => { if (state === 'dead') $('#gameover').classList.remove('hidden'); }, 750);
 }
 
-function fireHitscan(spread) {
-  const ang = player.ang + (Math.random() - 0.5) * spread;
+function castShot(ang) {
   const dx = Math.cos(ang), dy = Math.sin(ang);
   const wallDist = rayWall(player.x, player.y, dx, dy, 40);
-
   const hits = [];
   for (const e of game.enemies) {
     if (e.dead) continue;
@@ -2172,26 +2310,134 @@ function fireHitscan(spread) {
     hits.push({ e, t });
   }
   hits.sort((a, b) => a.t - b.t);
+  return { dx, dy, wallDist, hits };
+}
 
+function bulletImpact(type, wx, wy, vOff, big) {
+  const pt = worldToScreen(wx, wy, vOff);
+  if (!pt) return;
+  const colors = BULLET_COLORS[type] || BULLET_COLORS.standard;
+  const count = type === 'demon' ? 9 : type === 'angel' ? 7 : type === 'undead' ? 7 : 5;
+  spawnColorBurst(pt.x, pt.y, count, colors);
+  if (big) {
+    const maxR = type === 'demon' ? 36 : type === 'angel' ? 30 : 24;
+    spawnRing(pt.x, pt.y, BULLET_TYPES[type].color, maxR);
+  }
+}
+
+function spawnBulletVisual(type, ang, endX, endY, beam) {
+  const sx = player.x + Math.cos(ang) * 0.4;
+  const sy = player.y + Math.sin(ang) * 0.4;
+  if (beam) {
+    game.bullets.push({ kind: 'beam', type, x1: sx, y1: sy, x2: endX, y2: endY, t: 0, life: 0.14 });
+  } else {
+    const dist = Math.hypot(endX - sx, endY - sy);
+    const speed = type === 'angel' ? 42 : type === 'undead' ? 38 : type === 'demon' ? 36 :
+      type === 'goblin' ? 66 : type === 'fairy' ? 78 : 70;
+    game.bullets.push({
+      kind: 'travel', type,
+      x: sx, y: sy, sx, sy, ex: endX, ey: endY,
+      vx: Math.cos(ang) * speed, vy: Math.sin(ang) * speed,
+      t: 0, life: Math.max(0.05, dist / speed), trail: []
+    });
+  }
+  if (game.bullets.length > 180) game.bullets.splice(0, game.bullets.length - 180);
+}
+
+function fireHitscan(spread) {
+  const type = selectedBullet;
+  const def = BULLET_TYPES[type] || BULLET_TYPES.standard;
   const s = stats();
   const crit = Math.random() < s.crit;
-  const dmg = s.damage * (crit ? GROWTH_BASE.critMult : 1);
-  const n = Math.min(s.pierce, hits.length);
+  const budget = s.damage * (crit ? GROWTH_BASE.critMult : 1);
+  const events = [];
+  const rays = [];
+  const addEvent = (e, dmg) => { if (e && dmg > 0) events.push({ e, dmg }); };
+  const addRay = (ang, ex, ey, beam) => rays.push({ ang, ex, ey, beam: !!beam });
+  const centerAng = player.ang + (Math.random() - 0.5) * spread;
 
-  if (n > 0) {
-    for (let i = 0; i < n; i++) {
-      const e = hits[i].e;
-      const pt = worldToScreen(e.x, e.y, ETYPES[e.type].eyeH);
-      if (pt) spawnBlood(pt.x, pt.y, 4);
-      damageEnemy(e, dmg, ang, crit);
+  if (def.kind === 'single') {
+    const ray = castShot(centerAng);
+    const hit = ray.hits[0];
+    const ex = hit ? hit.e.x : player.x + ray.dx * ray.wallDist;
+    const ey = hit ? hit.e.y : player.y + ray.dy * ray.wallDist;
+    addRay(centerAng, ex, ey);
+    if (hit) {
+      addEvent(hit.e, budget);
+      bulletImpact(type, hit.e.x, hit.e.y, ETYPES[hit.e.type].eyeH, false);
+    } else {
+      bulletImpact(type, ex, ey, 0.45, false);
     }
-    game.hits += n;
-    game.hitMarker = 0.18;
+  } else if (def.kind === 'beam') {
+    const ray = castShot(centerAng);
+    const n = Math.min(8, 3 + growth.magLv);
+    const targets = ray.hits.slice(0, n);
+    const last = targets[targets.length - 1];
+    const ex = last ? last.e.x : player.x + ray.dx * ray.wallDist;
+    const ey = last ? last.e.y : player.y + ray.dy * ray.wallDist;
+    addRay(centerAng, ex, ey, true);
+    if (targets.length) {
+      const dmg = budget / targets.length;
+      for (const h of targets) {
+        addEvent(h.e, dmg);
+        bulletImpact(type, h.e.x, h.e.y, ETYPES[h.e.type].eyeH, false);
+      }
+    } else {
+      bulletImpact(type, ex, ey, 0.45, false);
+    }
+  } else if (def.kind === 'aoe') {
+    const ray = castShot(centerAng);
+    const first = ray.hits[0];
+    const cx = first ? first.e.x : player.x + ray.dx * ray.wallDist;
+    const cy = first ? first.e.y : player.y + ray.dy * ray.wallDist;
+    const radius = (def.radius || 1.2) + growth.magLv * 0.08;
+    const targets = [];
+    for (const e of game.enemies) {
+      if (e.dead) continue;
+      if (Math.hypot(e.x - cx, e.y - cy) > radius + e.radius * 0.5) continue;
+      if (!hasLOS(player.x, player.y, e.x, e.y)) continue;
+      targets.push(e);
+    }
+    addRay(centerAng, cx, cy);
+    if (targets.length) {
+      const dmg = budget / targets.length;
+      for (const e of targets) {
+        addEvent(e, dmg);
+        bulletImpact(type, e.x, e.y, ETYPES[e.type].eyeH, false);
+      }
+    }
+    bulletImpact(type, cx, cy, 0.45, true);
   } else {
-    const hx = player.x + dx * wallDist;
-    const hy = player.y + dy * wallDist;
-    spawnSparksWorld(hx, hy, 5);
+    const count = def.kind === 'needle' ? Math.min(9, 3 + growth.magLv) : Math.min(12, 5 + growth.magLv);
+    const fan = def.kind === 'needle' ? 0.045 : 0.075;
+    const per = budget / count;
+    for (let i = 0; i < count; i++) {
+      const a = player.ang + (i - (count - 1) / 2) * fan + (Math.random() - 0.5) * spread;
+      const ray = castShot(a);
+      const hit = ray.hits[0];
+      const ex = hit ? hit.e.x : player.x + ray.dx * ray.wallDist;
+      const ey = hit ? hit.e.y : player.y + ray.dy * ray.wallDist;
+      addRay(a, ex, ey);
+      if (hit) {
+        addEvent(hit.e, per);
+        bulletImpact(type, hit.e.x, hit.e.y, ETYPES[hit.e.type].eyeH, false);
+      } else {
+        bulletImpact(type, ex, ey, 0.45, false);
+      }
+    }
   }
+
+  for (let i = 0; i < events.length; i++) {
+    const ev = events[i];
+    const angleTo = Math.atan2(ev.e.y - player.y, ev.e.x - player.x);
+    damageEnemy(ev.e, ev.dmg, angleTo, crit && i === 0);
+  }
+  if (events.length) {
+    game.hits += events.length;
+    game.hitMarker = 0.18;
+  }
+
+  for (const ray of rays) spawnBulletVisual(type, ray.ang, ray.ex, ray.ey, ray.beam);
 }
 
 function tryFire() {
@@ -2435,6 +2681,23 @@ function updateParticles(dt) {
   }
 }
 
+function updateBullets(dt) {
+  const arr = game.bullets;
+  for (let i = arr.length - 1; i >= 0; i--) {
+    const b = arr[i];
+    b.t += dt;
+    if (b.kind === 'beam') {
+      if (b.t >= b.life) arr.splice(i, 1);
+      continue;
+    }
+    b.trail.push({ x: b.x, y: b.y });
+    if (b.trail.length > 5) b.trail.shift();
+    b.x += b.vx * dt;
+    b.y += b.vy * dt;
+    if (b.t >= b.life) arr.splice(i, 1);
+  }
+}
+
 // 血条动画使用真实时间，hitstop 时仍然继续融化
 function updateEnemyBars(dt) {
   for (const e of game.enemies) {
@@ -2546,6 +2809,7 @@ function update(dt) {
   updateProjectiles(dt);
   updatePickups(dt);
   updateParticles(dt);
+  updateBullets(dt);
   updateWaves(dt);
 
   flowTimer -= dt;
@@ -2907,6 +3171,121 @@ function renderParticles() {
   ctx.globalAlpha = 1;
 }
 
+function renderBullets() {
+  if (!game.bullets.length) return;
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  for (const b of game.bullets) {
+    const def = BULLET_TYPES[b.type] || BULLET_TYPES.standard;
+    const colors = BULLET_COLORS[b.type] || BULLET_COLORS.standard;
+    if (b.kind === 'beam') {
+      const a = worldToScreen(b.x1, b.y1, 0.55);
+      const z = worldToScreen(b.x2, b.y2, 0.55);
+      if (!a || !z) continue;
+      const fade = 1 - Math.max(0, b.t / b.life);
+      ctx.strokeStyle = def.color;
+      ctx.globalAlpha = 0.22 * fade;
+      ctx.lineWidth = 7;
+      ctx.beginPath();
+      ctx.moveTo(a.x, a.y);
+      ctx.lineTo(z.x, z.y);
+      ctx.stroke();
+      ctx.globalAlpha = 0.95 * fade;
+      ctx.strokeStyle = '#e8ffff';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(a.x, a.y);
+      ctx.lineTo(z.x, z.y);
+      ctx.stroke();
+      continue;
+    }
+
+    const p = worldToScreen(b.x, b.y, 0.55);
+    if (!p) continue;
+    const start = worldToScreen(b.sx, b.sy, 0.55);
+    if (start) {
+      ctx.globalAlpha = 0.16;
+      ctx.strokeStyle = def.color;
+      ctx.lineWidth = b.type === 'demon' || b.type === 'undead' ? 2 : 1;
+      ctx.beginPath();
+      ctx.moveTo(start.x, start.y);
+      ctx.lineTo(p.x, p.y);
+      ctx.stroke();
+    }
+    for (let i = 0; i < b.trail.length; i++) {
+      const q = worldToScreen(b.trail[i].x, b.trail[i].y, 0.55);
+      if (!q) continue;
+      ctx.globalAlpha = 0.12 + (i / b.trail.length) * 0.42;
+      ctx.fillStyle = colors[0];
+      ctx.fillRect(q.x - 0.5, q.y - 0.5, 1, 1);
+    }
+    ctx.globalAlpha = 1;
+
+    if (b.type === 'fairy') {
+      const q = b.trail.length ? worldToScreen(b.trail[b.trail.length - 1].x, b.trail[b.trail.length - 1].y, 0.55) : null;
+      if (q) {
+        ctx.globalAlpha = 0.85;
+        ctx.strokeStyle = def.color;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(q.x, q.y);
+        ctx.lineTo(p.x, p.y);
+        ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = '#e8ffff';
+      ctx.fillRect(p.x - 0.5, p.y - 0.5, 1, 1);
+    } else if (b.type === 'goblin') {
+      ctx.globalAlpha = 0.9;
+      ctx.fillStyle = def.color;
+      ctx.fillRect(p.x - 1, p.y - 1, 2, 2);
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = '#ffe9a8';
+      ctx.fillRect(p.x - 0.5, p.y - 0.5, 1, 1);
+    } else if (b.type === 'angel') {
+      ctx.globalAlpha = 0.22;
+      ctx.fillStyle = def.color;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 6, 0, TAU);
+      ctx.fill();
+      ctx.globalAlpha = 0.95;
+      ctx.fillStyle = '#fff7d0';
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 2.2, 0, TAU);
+      ctx.fill();
+    } else if (b.type === 'undead') {
+      ctx.globalAlpha = 0.2;
+      ctx.fillStyle = '#b06cff';
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 6, 0, TAU);
+      ctx.fill();
+      ctx.globalAlpha = 0.95;
+      ctx.fillStyle = '#7dff7a';
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 2.4, 0, TAU);
+      ctx.fill();
+    } else if (b.type === 'demon') {
+      ctx.globalAlpha = 0.24;
+      ctx.fillStyle = '#ff4a2a';
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 7, 0, TAU);
+      ctx.fill();
+      ctx.globalAlpha = 0.95;
+      ctx.fillStyle = '#ffd08a';
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 2.8, 0, TAU);
+      ctx.fill();
+    } else {
+      ctx.globalAlpha = 0.95;
+      ctx.fillStyle = def.color;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 2, 0, TAU);
+      ctx.fill();
+    }
+  }
+  ctx.restore();
+}
+
 function renderEnemyBars() {
   for (const e of game.enemies) {
     if (e.barHidden || (e.dead && e.barShatterDone)) continue;
@@ -3142,6 +3521,13 @@ function renderHUD() {
     drawText(ammoText, W - 12, H - 39, '#e9f4ff', 2, 'right');
   }
 
+  const bd = BULLET_TYPES[selectedBullet] || BULLET_TYPES.standard;
+  if (IS_TOUCH) {
+    drawText(bd.name, W - 10, 81, bd.color, 1, 'right');
+  } else {
+    drawText(bd.name, W - 12, H - 59, bd.color, 1, 'right');
+  }
+
   if (state === 'playing') renderEliteBar();
 
   // 准星
@@ -3222,6 +3608,7 @@ function render() {
 
   renderRings();
   renderParticles();
+  renderBullets();
   renderWeapon();
   renderFloats();
   renderEnemyBars();
@@ -3288,6 +3675,9 @@ window.VR = {
   damage: damageEnemy,
   fire: tryFire,
   reload: startReload,
+  bulletTypes: BULLET_TYPES,
+  setBullet: selectBullet,
+  get bullet() { return selectedBullet; },
   barInfo: (e) => enemyBarScreen(e),
   render,
   view: { get W() { return VW; }, get H() { return VH; } }
