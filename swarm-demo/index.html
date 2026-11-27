@@ -2327,8 +2327,10 @@ function bulletImpact(type, wx, wy, vOff, big) {
 
 function spawnBulletVisual(type, ang, endX, endY, beam) {
   const m = muzzleScreenPos();
-  // 视觉端点固定：枪口 -> 屏幕准星中心
-  const endPt = { x: Math.round(VW / 2), y: Math.round(VH / 2) };
+  // 分叉弹按各自命中的射线散开；其余固定枪口 -> 准星中心
+  const forked = type === 'fairy' || type === 'goblin';
+  const fixedEnd = { x: Math.round(VW / 2), y: Math.round(VH / 2) };
+  const endPt = forked ? (worldToScreen(endX, endY, 0.55) || fixedEnd) : fixedEnd;
   if (beam) {
     game.bullets.push({
       kind: 'beam', type,
