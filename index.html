@@ -2327,8 +2327,8 @@ function bulletImpact(type, wx, wy, vOff, big) {
 
 function spawnBulletVisual(type, ang, endX, endY, beam) {
   const m = muzzleScreenPos();
-  const endPt = worldToScreen(endX, endY, 0.55);
-  if (!endPt) return;
+  // 视觉端点固定：枪口 -> 屏幕准星中心
+  const endPt = { x: Math.round(VW / 2), y: Math.round(VH / 2) };
   if (beam) {
     game.bullets.push({
       kind: 'beam', type,
