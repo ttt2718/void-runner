@@ -1113,6 +1113,7 @@ const game = {
   enemies: [], projectiles: [], pickups: [], particles: [],
   floats: [], rings: [],
   pending: [], spawnTimer: 0, intermission: 0, waveActive: false,
+  eliteFocus: null,
   time: 0, shake: 0, damageFlash: 0, hitMarker: 0, killMarker: 0,
   hitStop: 0,
   banner: '', bannerSub: '', bannerT: 0,
@@ -2052,6 +2053,7 @@ function spawnBarShatter(sx, sy, overkill) {
 
 function damageEnemy(e, dmg, ang, crit) {
   if (!e || e.dead) return;
+  if (e.elite) game.eliteFocus = e;
   const oldHp = e.hp;
   e.hp -= dmg;
   e.flashT = 0.09;
@@ -3020,6 +3022,45 @@ function buildMinimap() {
 }
 const MINIMAP = buildMinimap();
 
+function renderEliteBar() {
+  let e = game.eliteFocus;
+  if (!e || e.dead) {
+    let best = null, bd = Infinity;
+    for (const o of game.enemies) {
+      if (o.dead || !o.elite) continue;
+      const d = (o.x - player.x) ** 2 + (o.y - player.y) ** 2;
+      if (d < bd) { bd = d; best = o; }
+    }
+    game.eliteFocus = best;
+    e = best;
+  }
+  if (!e) return;
+
+  const bw = IS_TOUCH ? Math.min(260, VW - 96) : Math.min(380, VW - 220);
+  const bx = Math.round((VW - bw) / 2);
+  const by = IS_TOUCH ? 64 : 10;
+  const hp = Math.max(0, Math.ceil(e.hp));
+  const maxHp = Math.max(1, Math.ceil(e.maxHp));
+  const frac = clamp(hp / maxHp, 0, 1);
+
+  ctx.fillStyle = 'rgba(4,8,12,.82)';
+  ctx.fillRect(bx - 2, by - 2, bw + 4, 21);
+  ctx.strokeStyle = 'rgba(255,210,58,.72)';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(bx - 1.5, by - 1.5, bw + 3, 20);
+
+  drawText('ELITE ' + e.type.toUpperCase(), bx, by, '#ffd23a', 1);
+  drawText(hp + ' / ' + maxHp, bx + bw, by, '#ffeccf', 1, 'right');
+
+  const barY = by + 9, barH = 5;
+  ctx.fillStyle = 'rgba(0,0,0,.68)';
+  ctx.fillRect(bx, barY, bw, barH);
+  ctx.fillStyle = '#ff7a2f';
+  ctx.fillRect(bx, barY, bw * frac, barH);
+  ctx.fillStyle = 'rgba(0,0,0,.45)';
+  for (let i = 1; i < 10; i++) ctx.fillRect(bx + bw * i / 10, barY, 1, barH);
+}
+
 function renderHUD() {
   const W = VW, H = VH;
 
@@ -3100,6 +3141,8 @@ function renderHUD() {
     drawText('AMMO', W - 12, H - 47, '#8fa6b8', 1, 'right');
     drawText(ammoText, W - 12, H - 39, '#e9f4ff', 2, 'right');
   }
+
+  if (state === 'playing') renderEliteBar();
 
   // 准星
   const cx = Math.round(W / 2), cy = Math.round(H / 2);
