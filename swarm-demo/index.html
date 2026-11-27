@@ -1019,6 +1019,8 @@ for (const kind of ['grunt', 'gunner', 'drone']) {
   }
   ENEMY_ART[kind] = {
     frames, flash,
+    eliteFrames: frames.map((a) => tintArt(a, 255, 170, 50, 0.42)),
+    eliteFlash: flash.map((a) => tintArt(a, 255, 225, 130, 0.5)),
     height: kind === 'drone' ? 0.42 : kind === 'gunner' ? 0.82 : 0.78,
     vOff: kind === 'drone' ? 0.30 : 0
   };
@@ -1150,7 +1152,7 @@ function upgradeCost(kind) {
 }
 function scrapFor(e) {
   const base = e.type === 'gunner' ? 16 : e.type === 'drone' ? 6 : 8;
-  return Math.round(base * Math.pow(1.35, game.wave - 1) * (1 + growth.core * 0.1));
+  return Math.round(base * (e.elite ? 4 : 1) * Math.pow(1.35, game.wave - 1) * (1 + growth.core * 0.1));
 }
 function dmgText(n) {
   if (n < 1000) return String(Math.round(n * 10) / 10);
@@ -1743,12 +1745,21 @@ function startWave(n) {
   game.spawnTimer = 0.7;
 
   const count = Math.min(40 + n * 20, 160);
+  let sinceElite = 0;
+  let nextElite = 15 + Math.floor(Math.random() * 6);
   for (let i = 0; i < count; i++) {
     let t = 'grunt';
     if (i % 8 === 3) t = 'drone';
     if (n >= 2 && i % 17 === 5) t = 'gunner';
-    const p = SPAWNS[i % SPAWNS.length];
-    game.pending.push({ type: t, x: p.x, y: p.y });
+    let elite = false;
+    if (i > 0 && sinceElite >= nextElite) {
+      elite = true;
+      sinceElite = 0;
+      nextElite = 15 + Math.floor(Math.random() * 6);
+    } else {
+      sinceElite++;
+    }
+    game.pending.push({ type: t, elite });
   }
 
   banner('WAVE ' + String(n).padStart(2, '0'), 'SWARM ' + count, 2.3);
@@ -1868,19 +1879,36 @@ function pickSpawnPoint() {
   return top[(Math.random() * top.length) | 0].s;
 }
 
-function spawnEnemyAt(type, x, y) {
+// L4D 式散点：远处主群、前方中距离、玩家推进后的背后抄截
+function swarmSpawnPoint() {
+  const roll = Math.random();
+  let x;
+  if (roll < 0.15 && player.x > 7) {
+    x = 1.6 + Math.random() * Math.max(0.3, player.x - 5.5);
+  } else if (roll < 0.45) {
+    x = player.x + 5 + Math.random() * 5;
+  } else {
+    x = 12 + Math.random() * 9.2;
+  }
+  return {
+    x: clamp(x, 1.4, 21.6),
+    y: 11.4 + Math.random() * 2.2
+  };
+}
+
+function spawnEnemyAt(type, x, y, elite) {
   const def = ETYPES[type];
   const wf = game.wave;
   const hpScale = Math.pow(1.28, wf - 1) * 0.45;
-  const maxHp = def.hp * hpScale;
+  const maxHp = def.hp * hpScale * (elite ? 4 : 1);
   const e = {
-    type, x, y,
+    type, x, y, elite: !!elite,
     hp: maxHp, maxHp,
     ghostHp: maxHp, ghostHold: 0,
     barShowT: 0, barHitT: 0,
     overkill: 0, barShatterT: 0, barShatterDone: false, barHidden: false,
-    radius: def.radius,
-    speed: def.speed * (1 + Math.min(0.32, (wf - 1) * 0.022)),
+    radius: def.radius * (elite ? 1.6 : 1),
+    speed: def.speed * (1 + Math.min(0.32, (wf - 1) * 0.022)) * (elite ? 0.85 : 1),
     dead: false, deadT: 0,
     atkCd: 0.6 + Math.random() * 0.9,
     windup: 0, pendingHit: false,
@@ -1917,14 +1945,15 @@ function updateCamera() {
 // 敌人血条的屏幕位置（头顶）
 function enemyBarScreen(e) {
   const art = ENEMY_ART[e.type];
-  let h = art.height;
+  const scale = e.elite ? 2 : 1;
+  let h = art.height * scale;
   if (e.dead) h *= 1 - 0.72 * Math.min(1, e.deadT / 0.65);
-  const pt = worldToScreen(e.x, e.y, (e.dead ? 0 : art.vOff) + h + 0.03);
+  const pt = worldToScreen(e.x, e.y, (e.dead ? 0 : art.vOff * scale) + h + 0.03);
   if (!pt) return null;
   const col = Math.round(pt.x);
   if (col < 0 || col >= VW) return null;
   if (pt.d >= zbuf[col] - 0.02) return null;
-  const w = clamp((VH * h / pt.d) * 0.7, 20, 72);
+  const w = clamp((VH * h / pt.d) * 0.7, 20, e.elite ? 110 : 72);
   return { x: pt.x - w / 2, y: pt.y - 9, w, hPx: h, d: pt.d, col };
 }
 
@@ -2046,14 +2075,12 @@ function damageEnemy(e, dmg, ang, crit) {
     game.shake = Math.max(game.shake, e.overkill > 0 ? 5 : 3);
   }
 
-  const art = ENEMY_ART[e.type];
-  // 击中后不显示伤害数字
-  // 最后一只怪击杀后会弹 WAVE CLEAR，避免 OVERKILL 文字和它叠在一起
-  const lastOfWave = game.waveActive && game.pending.length === 0 &&
-    !game.enemies.some((o) => o !== e && !o.dead);
-  if (killed && e.overkill > 0 && !lastOfWave) {
-    const opt = worldToScreen(e.x, e.y, art.vOff + art.height * 0.82);
-    if (opt) spawnFloat(opt.x, opt.y - 2, 'OVERKILL', '#c8ff3d', 1);
+  // 不显示伤害数字，只在暴击时弹 CRIT
+  if (crit) {
+    const art = ENEMY_ART[e.type];
+    const scale = e.elite ? 2 : 1;
+    const dpt = worldToScreen(e.x, e.y, art.vOff * scale + art.height * scale * 0.78);
+    if (dpt) spawnFloat(dpt.x + 8, dpt.y - 16, 'CRIT', '#ffe45e', 0.9);
   }
 
   if (killed) killEnemy(e);
@@ -2466,13 +2493,17 @@ function updateWaves(dt) {
       if (game.spawnTimer <= 0) {
         const alive = game.enemies.reduce((n, e) => n + (e.dead ? 0 : 1), 0);
         if (alive < 80) {
-          const next = game.pending.shift();
-          if (next) {
-            spawnEnemyAt(next.type, next.x, next.y);
-            game.spawnTimer = 0.10;
-          } else {
-            game.spawnTimer = 0.18;
+          const base = swarmSpawnPoint();
+          const want = 3 + Math.floor(Math.random() * 4) + (alive < 30 ? 2 : 0);
+          const pack = Math.min(want, game.pending.length, 80 - alive);
+          for (let k = 0; k < pack; k++) {
+            const item = game.pending.shift();
+            if (!item) break;
+            const sx = clamp(base.x + (Math.random() - 0.5) * 1.4, 1.4, 21.6);
+            const sy = clamp(base.y + (Math.random() - 0.5) * 0.7, 11.4, 13.6);
+            spawnEnemyAt(item.type, sx, sy, item.elite);
           }
+          game.spawnTimer = 0.3 + Math.random() * 0.5;
         } else {
           game.spawnTimer = 0.18;
         }
@@ -2802,9 +2833,12 @@ function renderSprites() {
     const dying = e.dead;
     if (dying && e.deadT > 15) continue;
     const frame = dying ? 0 : (e.animT > 0 ? 4 : e.frame);
-    const tex = e.flashT > 0 ? art.flash[frame] : art.frames[frame];
-    let worldH = art.height;
-    let vOff = art.vOff;
+    const elite = e.elite;
+    const frames = elite ? art.eliteFrames : art.frames;
+    const flashes = elite ? art.eliteFlash : art.flash;
+    const tex = e.flashT > 0 ? flashes[frame] : frames[frame];
+    let worldH = art.height * (elite ? 2 : 1);
+    let vOff = art.vOff * (elite ? 2 : 1);
     let shade = 1;
     if (dying) {
       const t = Math.min(1, e.deadT / 0.65);
