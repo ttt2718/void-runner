@@ -2326,18 +2326,23 @@ function bulletImpact(type, wx, wy, vOff, big) {
 }
 
 function spawnBulletVisual(type, ang, endX, endY, beam) {
-  const sx = player.x + Math.cos(ang) * 0.4;
-  const sy = player.y + Math.sin(ang) * 0.4;
+  const m = muzzleScreenPos();
+  const endPt = worldToScreen(endX, endY, 0.55);
+  if (!endPt) return;
   if (beam) {
-    game.bullets.push({ kind: 'beam', type, x1: sx, y1: sy, x2: endX, y2: endY, t: 0, life: 0.14 });
+    game.bullets.push({
+      kind: 'beam', type,
+      x1: m.x, y1: m.y, x2: endPt.x, y2: endPt.y,
+      t: 0, life: 0.14
+    });
   } else {
-    const dist = Math.hypot(endX - sx, endY - sy);
+    const dist = Math.hypot(endX - player.x, endY - player.y);
     const speed = type === 'angel' ? 42 : type === 'undead' ? 38 : type === 'demon' ? 36 :
       type === 'goblin' ? 66 : type === 'fairy' ? 78 : 70;
     game.bullets.push({
       kind: 'travel', type,
-      x: sx, y: sy, sx, sy, ex: endX, ey: endY,
-      vx: Math.cos(ang) * speed, vy: Math.sin(ang) * speed,
+      x: m.x, y: m.y, sx: m.x, sy: m.y,
+      ex: endPt.x, ey: endPt.y,
       t: 0, life: Math.max(0.05, dist / speed), trail: []
     });
   }
@@ -2692,8 +2697,9 @@ function updateBullets(dt) {
     }
     b.trail.push({ x: b.x, y: b.y });
     if (b.trail.length > 5) b.trail.shift();
-    b.x += b.vx * dt;
-    b.y += b.vy * dt;
+    const k = Math.min(1, b.t / b.life);
+    b.x = b.sx + (b.ex - b.sx) * k;
+    b.y = b.sy + (b.ey - b.sy) * k;
     if (b.t >= b.life) arr.splice(i, 1);
   }
 }
@@ -3137,6 +3143,18 @@ function renderSprites() {
 /* =========================================================================
    15. 渲染：武器 / 粒子 / HUD
    ========================================================================= */
+function muzzleScreenPos() {
+  const moving = Math.min(1, Math.hypot(player.vx, player.vy) / 3.2);
+  const bobX = Math.sin(player.bobPhase) * 2.6 * moving + Math.sin(game.time * 1.7) * 0.9;
+  const bobY = Math.abs(Math.cos(player.bobPhase)) * 2.8 * moving + Math.sin(game.time * 2.3) * 0.7;
+  const reloadDip = player.reloadT > 0
+    ? Math.sin(clamp(1 - player.reloadT / 1.25, 0, 1) * Math.PI) * 26
+    : 0;
+  const gx = Math.round(VW / 2 - GUN_ART.w / 2 + bobX);
+  const gy = Math.round(VH - GUN_ART.h + 8 + bobY - player.recoil * 7 + reloadDip);
+  return { x: gx + GUN_MUZZLE.x, y: gy + GUN_MUZZLE.y };
+}
+
 function renderWeapon() {
   const moving = Math.min(1, Math.hypot(player.vx, player.vy) / 3.2);
   const bobX = Math.sin(player.bobPhase) * 2.6 * moving + Math.sin(game.time * 1.7) * 0.9;
@@ -3179,9 +3197,8 @@ function renderBullets() {
     const def = BULLET_TYPES[b.type] || BULLET_TYPES.standard;
     const colors = BULLET_COLORS[b.type] || BULLET_COLORS.standard;
     if (b.kind === 'beam') {
-      const a = worldToScreen(b.x1, b.y1, 0.55);
-      const z = worldToScreen(b.x2, b.y2, 0.55);
-      if (!a || !z) continue;
+      const a = { x: b.x1, y: b.y1 };
+      const z = { x: b.x2, y: b.y2 };
       const fade = 1 - Math.max(0, b.t / b.life);
       ctx.strokeStyle = def.color;
       ctx.globalAlpha = 0.22 * fade;
@@ -3200,9 +3217,8 @@ function renderBullets() {
       continue;
     }
 
-    const p = worldToScreen(b.x, b.y, 0.55);
-    if (!p) continue;
-    const start = worldToScreen(b.sx, b.sy, 0.55);
+    const p = { x: b.x, y: b.y };
+    const start = { x: b.sx, y: b.sy };
     if (start) {
       ctx.globalAlpha = 0.16;
       ctx.strokeStyle = def.color;
@@ -3213,8 +3229,7 @@ function renderBullets() {
       ctx.stroke();
     }
     for (let i = 0; i < b.trail.length; i++) {
-      const q = worldToScreen(b.trail[i].x, b.trail[i].y, 0.55);
-      if (!q) continue;
+      const q = { x: b.trail[i].x, y: b.trail[i].y };
       ctx.globalAlpha = 0.12 + (i / b.trail.length) * 0.42;
       ctx.fillStyle = colors[0];
       ctx.fillRect(q.x - 0.5, q.y - 0.5, 1, 1);
@@ -3222,7 +3237,7 @@ function renderBullets() {
     ctx.globalAlpha = 1;
 
     if (b.type === 'fairy') {
-      const q = b.trail.length ? worldToScreen(b.trail[b.trail.length - 1].x, b.trail[b.trail.length - 1].y, 0.55) : null;
+      const q = b.trail.length ? { x: b.trail[b.trail.length - 1].x, y: b.trail[b.trail.length - 1].y } : null;
       if (q) {
         ctx.globalAlpha = 0.85;
         ctx.strokeStyle = def.color;
