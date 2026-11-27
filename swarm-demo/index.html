@@ -2034,7 +2034,7 @@ function damageEnemy(e, dmg, ang, crit) {
   e.ghostHp = Math.max(e.ghostHp, oldHp);
   e.ghostHold = 0.05;
   e.barShowT = 1.2;
-  e.barHitT = 0.14;
+  e.barHitT = 0;
 
   const killed = e.hp <= 0;
   if (killed) {
@@ -2047,11 +2047,7 @@ function damageEnemy(e, dmg, ang, crit) {
   }
 
   const art = ENEMY_ART[e.type];
-  const dpt = worldToScreen(e.x, e.y, art.vOff + art.height * 0.55);
-  if (dpt) {
-    spawnFloat(dpt.x, dpt.y - 2, dmgText(dmg), crit ? '#ffe45e' : damageColor(dmg), crit ? 1.8 : (dmg >= 1e6 ? 1.8 : 0.9));
-    if (crit) spawnFloat(dpt.x + 8, dpt.y - 18, 'CRIT', '#ffe45e', 0.9);
-  }
+  // 击中后不显示伤害数字
   // 最后一只怪击杀后会弹 WAVE CLEAR，避免 OVERKILL 文字和它叠在一起
   const lastOfWave = game.waveActive && game.pending.length === 0 &&
     !game.enemies.some((o) => o !== e && !o.dead);
@@ -2935,13 +2931,7 @@ function renderEnemyBars() {
     ctx.fillStyle = 'rgba(255,255,255,.16)';
     ctx.fillRect(x, y, w, 1);
 
-    if (e.dead && e.overkill > 0 && e.barShatterT < 0.12) {
-      ctx.fillStyle = 'rgba(255,255,255,.22)';
-      ctx.fillRect(x - 1, y - 1, w + 2, bh + 2);
-      ctx.strokeStyle = 'rgba(255,255,255,.95)';
-      ctx.lineWidth = 1;
-      ctx.strokeRect(x - 1.5, y - 1.5, w + 3, bh + 3);
-    }
+
     if (e.type === 'gunner') {
       ctx.strokeStyle = 'rgba(255,154,58,.55)';
       ctx.lineWidth = 1;
